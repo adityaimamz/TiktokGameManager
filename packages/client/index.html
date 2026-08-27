@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Game Animator</title>
+    <!--
+      Dua famili dari desain Interactify: Chakra Petch untuk angka dan label berjarak lebar,
+      Saira untuk teks biasa. Keduanya punya fallback system-ui di tailwind.config.js, jadi
+      OBS tanpa jaringan tetap menggambar halaman yang benar — hanya bentuk hurufnya beda.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Saira:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, 0);
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/ui/main.tsx"></script>
+  </body>
+</html>

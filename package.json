@@ -1,0 +1,56 @@
+{
+  "name": "tiktok-game-manager",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,magenta \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite packages/client",
+    "dev:server": "node --watch --env-file=.env --import tsx packages/server/src/index.ts",
+    "build": "vite build packages/client",
+    "start": "node --import tsx packages/server/src/index.ts",
+    "preview": "vite preview packages/client",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/client && tsc -p packages/server",
+    "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
+    "verify": "npm test && npm run typecheck && npm run depcruise && npm run build",
+    "db:generate": "drizzle-kit generate --config packages/server/drizzle.config.ts",
+    "db:migrate": "node --env-file=.env --import tsx packages/server/src/db/migrate.ts",
+    "db:migrate:deploy": "node --import tsx packages/server/src/db/migrate.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.23.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.3",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.20.4",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@types/supertest": "^7.2.1",
+    "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.5.4",
+    "concurrently": "^10.0.4",
+    "dependency-cruiser": "^16.4.1",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.5.26",
+    "supertest": "^7.2.2",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.1"
+  }
+}
