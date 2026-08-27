@@ -1,5 +1,6 @@
 import { WIRE_VERSION } from '@lga/shared'
 import type { ClientEvent, ServerEvent } from '@lga/shared'
+import { log } from './log.js'
 
 /** Bagian dari `WebSocket` yang benar-benar dipakai — sisanya tidak perlu ada di test. */
 export interface OverlaySocket {
@@ -25,7 +26,7 @@ export const REPLAYED_TOPICS: readonly string[] = ['roster', 'config']
 export interface SignalHubOptions {
   /** Dipanggil tiap jumlah overlay berubah. Dashboard menampilkannya di top bar. */
   onCount?: (count: number) => void
-  /** Default: `console.warn`. */
+  /** Default: satu baris log JSON bertingkat warn. */
   onDropped?: (error: unknown) => void
 }
 
@@ -48,7 +49,7 @@ export class SignalHub {
     this.onDropped =
       opts.onDropped ??
       ((error) => {
-        console.warn('[SignalHub] dropping an overlay socket that failed to receive', error)
+        log('warn', 'dropping an overlay socket that failed to receive', { err: error })
       })
   }
 

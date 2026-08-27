@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Router, raw } from 'express'
+import { log } from '../log.js'
 
 /** Tipe yang boleh diunggah, dan ekstensi yang server berikan untuk masing-masing. */
 const EXTENSIONS: Record<string, string> = {
@@ -33,6 +34,29 @@ const CONTENT_TYPES: Record<string, string> = {
  */
 const SAFE_NAME = /^[a-f0-9]{16}\.(png|jpg|webp|gif|mp3|mp4|webm)$/
 
+/**
+ * Uji tulis sekali saat boot, dan alasannya kalau gagal.
+ *
+ * Ini yang menangkap kesalahan konfigurasi paling mahal di host cloud: `UPLOAD_DIR` yang
+ * tidak menunjuk ke volume. Tanpa probe, gejalanya baru muncul berminggu-minggu kemudian
+ * sebagai latar arena yang hilang sesudah redeploy — dengan config yang masih menunjuk ke
+ * berkas yang sudah tidak ada, dan tanpa satu pun pesan kesalahan.
+ *
+ * Mengembalikan alasan, bukan melempar: pemanggilnya yang memutuskan seberapa keras
+ * bereaksi, dan jawaban yang benar di sini adalah memperingatkan, bukan menjatuhkan siaran.
+ */
+export async function probeUploadDir(dir: string): Promise<string | null> {
+  const probe = join(dir, '.write-probe')
+  try {
+    await mkdir(dir, { recursive: true })
+    await writeFile(probe, '')
+    await rm(probe)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+}
+
 export function uploadRoutes(dir: string): Router {
   const router = Router()
 
@@ -61,7 +85,7 @@ export function uploadRoutes(dir: string): Router {
       await mkdir(dir, { recursive: true })
       await writeFile(join(dir, name), req.body)
     } catch (error) {
-      console.error('[server] could not store the upload', error)
+      log('error', 'could not store the upload', { err: error })
       res.status(500).json({ error: 'could not store the upload' })
       return
     }

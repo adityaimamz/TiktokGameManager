@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { GIFT_SEED } from '@lga/shared'
 import type { GiftCatalogEntry } from '@lga/shared'
+import { log } from '../log.js'
 
 /**
  * Yang dibutuhkan route dari sumber katalog.
@@ -48,7 +49,7 @@ export function giftRoutes(source: GiftCatalogSource, stored: StoredGifts = null
     try {
       saved = stored === null ? [] : await stored()
     } catch (error) {
-      console.warn('[server] could not read the stored gift catalog', error)
+      log('warn', 'could not read the stored gift catalog', { err: error })
     }
 
     const catalog = mergeCatalog(saved, live)

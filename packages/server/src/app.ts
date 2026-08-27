@@ -3,6 +3,7 @@ import type { ErrorRequestHandler, Express, RequestHandler } from 'express'
 import { keyMatches, requestKey } from './app-key.js'
 import { DEFAULT_PORT } from './env.js'
 import { lanUrls } from './lan-urls.js'
+import { log } from './log.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { chatRoutes } from './routes/chat.js'
 import type { ChatConnection } from './routes/chat.js'
@@ -69,7 +70,7 @@ const requireDb: RequestHandler = (_req, res) => {
  */
 const databaseErrors: ErrorRequestHandler = (error, _req, res, _next) => {
   const code = (error as { code?: unknown } | null)?.code
-  console.error('[server] database request failed', error)
+  log('error', 'database request failed', { err: error })
   if (code === '42P01') {
     res.status(500).json({ error: 'database tables are missing — run npm run db:migrate' })
     return

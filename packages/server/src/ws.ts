@@ -1,5 +1,6 @@
 import { WIRE_VERSION } from '@lga/shared'
 import type { ChatMessage, ConnectionStatus, ServerEvent } from '@lga/shared'
+import { log } from './log.js'
 
 /** Bagian dari `WebSocket` yang benar-benar dipakai — sisanya tidak perlu ada di test. */
 export interface SocketLike {
@@ -18,7 +19,7 @@ export interface WsHubOptions {
    * angkanya tanpa menunggu perubahan berikutnya.
    */
   getOverlays?: () => number
-  /** Default: `console.warn`. */
+  /** Default: satu baris log JSON bertingkat warn. */
   onDropped?: (error: unknown) => void
 }
 
@@ -44,7 +45,7 @@ export class WsHub {
     this.onDropped =
       opts.onDropped ??
       ((error) => {
-        console.warn('[WsHub] dropping a socket that failed to receive', error)
+        log('warn', 'dropping a socket that failed to receive', { err: error })
       })
   }
 

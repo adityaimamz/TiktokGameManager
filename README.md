@@ -367,20 +367,29 @@ Tanpa `DATABASE_URL` game tetap bisa dimainkan penuh; yang hilang hanya statisti
 melewati devDependencies sehingga `vite` tidak ada dan build gagal. `tsx` sengaja duduk di
 `dependencies`, bukan devDependencies, karena ia yang menjalankan server saat runtime.
 
+Versi Node datang dari `.nvmrc` (22). Nixpacks di Railway dan `actions/setup-node` di CI
+sama-sama membacanya, jadi keduanya tidak bisa memilih mayor yang berbeda.
+
 #### 4. Environment variables
 
 ```bash
 DATABASE_URL=postgresql://...   # dari langkah 1. Kosong = jalan tanpa statistik
 UPLOAD_DIR=/data/uploads        # arahkan ke volume (langkah 5), bukan disk ephemeral
 EULER_API_KEY=                  # opsional; kosong = free tier EulerStream
-APP_KEY=<acak-panjang>          # WAJIB saat publik — lihat di bawah
+APP_KEY=<24+ karakter acak>     # WAJIB — server MENOLAK boot tanpanya
 ```
 
 #### Kunci aplikasi
 
 Tanpa `APP_KEY`, siapa pun yang membuka alamat deploy mendapat panel kontrol penuh — bisa
-menyambungkan akun TikTok-mu, memulai match, dan mengunggah berkas. Isi `APP_KEY` dengan
-string acak panjang, lalu:
+menyambungkan akun TikTok-mu, memulai match, dan mengunggah berkas. Karena itu server
+**menolak boot** saat `APP_KEY` kosong, dan menolak kunci yang lebih pendek dari 24 karakter
+(kunci overlay OBS tinggal di URL selamanya, jadi kunci pendek di sana setara tanpa kunci).
+
+Satu-satunya jalan keluar adalah `ALLOW_OPEN_ACCESS=1`, dan ia untuk dev lokal —
+`.env.example` sudah memuatnya. Jangan pernah menyetelnya di deploy publik.
+
+Isi `APP_KEY` dengan string acak panjang, lalu:
 
 | Pemakai | Cara membawa kunci |
 | --- | --- |

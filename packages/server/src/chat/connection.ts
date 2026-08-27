@@ -3,6 +3,7 @@ import type { ChatMessage, ConnectionStatus, GiftCatalogEntry } from '@lga/share
 import type { TikTokClient, TikTokClientFactory } from './client.js'
 import { readGiftCatalog, readGiftFromEvent } from './gift-catalog.js'
 import { MAPPED_EVENTS, mapTikTokEvent, readViewerCount } from './map-event.js'
+import { log } from '../log.js'
 
 export interface TikTokConnectionOptions {
   createClient: TikTokClientFactory
@@ -116,12 +117,12 @@ export class TikTokConnection {
       if (generation !== this.generation) return
       this.gifts = readGiftCatalog(payload)
       this.opts.onGifts?.(this.gifts)
-      console.log(`[TikTokConnection] room gift catalog loaded: ${this.gifts.length} gifts`)
+      log('info', 'room gift catalog loaded', { gifts: this.gifts.length })
     } catch (error) {
       // Dicatat, bukan ditelan: katalog kosong dan katalog yang gagal diambil terlihat
       // sama persis dari dashboard — keduanya jatuh ke GIFT_SEED — jadi tanpa baris ini
       // tidak ada cara tahu mana yang sedang terjadi saat siaran berlangsung.
-      console.warn('[TikTokConnection] room gift catalog unavailable, falling back to seed', error)
+      log('warn', 'room gift catalog unavailable, falling back to seed', { err: error })
       if (generation === this.generation) this.gifts = []
     }
   }

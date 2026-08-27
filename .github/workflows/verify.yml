@@ -1,0 +1,28 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # test + typecheck + depcruise + build. Keempatnya memeriksa hal yang berbeda dan
+      # tidak satu pun menggantikan yang lain — itulah sebabnya gerbangnya satu perintah.
+      #
+      # TEST_DATABASE_URL sengaja TIDAK disetel: .env.example sudah mencatat bahwa kosong
+      # berarti test repository melewati dirinya sendiri, dan menyalakan Postgres di CI
+      # untuk itu adalah harga yang belum perlu dibayar. Ditambahkan saat ada regresi
+      # repository yang benar-benar lolos ke main — bukan sebelumnya.
+      - run: npm run verify
