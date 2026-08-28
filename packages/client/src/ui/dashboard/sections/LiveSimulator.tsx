@@ -19,7 +19,7 @@ export function LiveSimulator(props: LiveSimulatorProps): ReactElement {
         </h2>
         {/* Satu kata mono sudah cukup — statusnya juga terbaca dari tombolnya sendiri. */}
         <span
-          className={`font-data text-[10px] font-semibold uppercase tracking-[0.14em] ${
+          className={`font-ui text-[11px] font-semibold ${
             view.running ? 'text-standby' : 'text-muted'
           }`}
         >

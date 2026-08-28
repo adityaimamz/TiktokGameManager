@@ -167,7 +167,22 @@ export interface TriggerRule {
      *  daftar ber-OR dan tangkapan umum sekaligus (Req 29). */
     | { kind: 'gift'; giftNames: string[]; minCount: number }
     | { kind: 'follow' }
-  then: { actionType: BattleActionType; target: TargetKind; value: number; nukeType?: NukeType }
+  then: {
+    actionType: BattleActionType
+    target: TargetKind
+    value: number
+    nukeType?: NukeType
+    /**
+     * HP maksimal yang SEKALIGUS didapat pengirim saat ultimate ini melesat.
+     *
+     * Jumlah TETAP milik rule ini, bukan turunan koin maupun `gameplay.hpGainedPerGrow` yang
+     * melayani jalur like: yang memilah gift mahal dari gift murah adalah `minCount` dan daftar
+     * nama gift di rule yang sama. Hanya sah pada rule gift yang aksinya 'nuke' —
+     * `validateRule` membuangnya di luar itu, aturan yang sama dengan `nukeType`. Absen berarti
+     * mati, jadi config lama di localStorage creator tetap sah tanpa migrasi.
+     */
+    growWithNuke?: number
+  }
   legend: {
     show: boolean
     /** Teks di action legend. "{side}" diganti nama sisi yang cocok. */
@@ -344,3 +359,5 @@ export const GIFT_NAME_MAX_LENGTH = 40
 export const MAX_GIFT_NAMES = 20
 /** Tidak masuk NUMERIC_RANGES: ia hidup di dalam rule, bukan di section datar. */
 export const GIFT_MIN_COUNT_RANGE: NumericRange = { min: 1, max: 999, integer: true }
+/** Sama: bonus HP `then.growWithNuke` hidup di dalam rule. Nol berarti mati. */
+export const GROW_WITH_NUKE_RANGE: NumericRange = { min: 0, max: 99_999, integer: true }

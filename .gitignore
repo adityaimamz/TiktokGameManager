@@ -11,3 +11,5 @@ CLAUDE
 docs/
 req.md
 CLAUDE.md
+.agents/
+skills-lock.json

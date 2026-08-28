@@ -20,6 +20,7 @@ import {
   triggerCards,
   toggleGiftName,
   withGiftNames,
+  withGrowWithNuke,
   withHpGainedPerGrow,
   withKeyword,
   withLikeThreshold,
@@ -288,6 +289,46 @@ describe('pilihan aksi ultimate', () => {
 
     expect(then?.actionType).toBe('heal')
     expect(then?.nukeType).toBeUndefined()
+  })
+
+  it('membuang opsi tambah HP saat aksinya pindah ke non-nuke', () => {
+    const nuked = withGrowWithNuke(
+      withActionChoice(defaultConfig(), 'gift-heal', 'nuke:laser'),
+      'gift-heal',
+      500,
+    )
+    const healed = withActionChoice(nuked, 'gift-heal', 'heal')
+
+    expect(healed.triggers.find((rule) => rule.id === 'gift-heal')?.then.growWithNuke).toBeUndefined()
+  })
+})
+
+describe('withGrowWithNuke', () => {
+  const on = (hp = 500): ReturnType<typeof defaultConfig> =>
+    withGrowWithNuke(withActionChoice(defaultConfig(), 'gift-heal', 'nuke:laser'), 'gift-heal', hp)
+
+  it('menulis jumlah HP tetap ke rule', () => {
+    expect(on().triggers.find((rule) => rule.id === 'gift-heal')?.then.growWithNuke).toBe(500)
+  })
+
+  /* Mati disimpan sebagai KETIADAAN, bukan nol — bentuk yang sama dengan yang dikembalikan
+   * validateConfig, jadi panel tidak berperilaku beda sebelum dan sesudah reload. */
+  it('menyimpan nol sebagai absen', () => {
+    expect(on(0).triggers.find((rule) => rule.id === 'gift-heal')?.then.growWithNuke).toBeUndefined()
+  })
+
+  /* Legend TIDAK menyebutnya: bonus HP itu urusan pengirimnya, dan rail arena sudah sempit. */
+  it('tidak mengubah caption legend', () => {
+    const before = withActionChoice(defaultConfig(), 'gift-heal', 'nuke:laser')
+    const caption = (config: ReturnType<typeof defaultConfig>): string | undefined =>
+      config.triggers.find((rule) => rule.id === 'gift-heal')?.legend.caption
+
+    expect(caption(on())).toBe(caption(before))
+  })
+
+  it('bertahan melewati validateConfig', () => {
+    const after = validateConfig(on())
+    expect(after.triggers.find((rule) => rule.id === 'gift-heal')?.then.growWithNuke).toBe(500)
   })
 
   /*

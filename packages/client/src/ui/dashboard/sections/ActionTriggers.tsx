@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import {
   GIFT_MIN_COUNT_RANGE,
+  GROW_WITH_NUKE_RANGE,
   KEYWORD_MAX_LENGTH,
   LEGEND_CAPTION_MAX_LENGTH,
   MAX_TRIGGER_RULES,
@@ -22,7 +23,9 @@ import {
   toggleGiftName,
   triggerCards,
   withActionChoice,
+  canGrowWithNuke,
   withGiftNames,
+  withGrowWithNuke,
   withHpGainedPerGrow,
   withKeyword,
   withLikeThreshold,
@@ -329,6 +332,23 @@ export function ActionTriggers(props: ActionTriggersProps): ReactElement {
                   </div>
                 )}
               </div>
+
+              {/* Hanya rule gift — syarat yang sama yang ditegakkan validateRule, dibaca dari
+                  fungsi yang sama supaya panel tidak bisa menawarkan sesuatu yang config-nya
+                  buang saat disimpan. Nol berarti mati, jadi tidak perlu saklar kedua. */}
+              {canGrowWithNuke(card) ? (
+                <div className="mt-1.5 w-1/3 min-w-0">
+                  <NumberField
+                    label="Tambah HP pengirim"
+                    range={{
+                      label: 'tambah HP pengirim',
+                      range: GROW_WITH_NUKE_RANGE,
+                    }}
+                    value={card.then.growWithNuke ?? 0}
+                    onCommit={(hp) => props.onConfig(withGrowWithNuke(props.config, card.id, hp))}
+                  />
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

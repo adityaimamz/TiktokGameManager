@@ -171,7 +171,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
      * menggulir hanya dua kolom tepi. Di bawah lg tiga kolom itu menumpuk jadi satu, dan
      * di sana halaman harus boleh menggulir seperti biasa.
      */
-    <div className="spill relative flex min-h-screen flex-col gap-3.5 overflow-hidden p-4 font-ui text-[13px] text-signal lg:h-screen lg:min-h-0">
+    <div className="spill relative flex min-h-[100dvh] flex-col gap-3.5 overflow-hidden p-4 font-ui text-[13px] text-signal lg:h-screen lg:min-h-0">
       <div className="spill-grid" aria-hidden="true" />
 
       {/*
@@ -228,7 +228,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
             />
           </div>
 
-          <div className="stack stack-split">
+          <div className="stack-lo stack-split">
             <GameInfo
               view={model.history.hasData ? model.history.current : null}
               config={model.config}
@@ -244,7 +244,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
           </div>
 
           {/* Blok uji: penonton sintetis dan aksi uji (ultimate ikut di dalam accordion-nya). */}
-          <div className="stack stack-split">
+          <div className="stack-lo stack-split">
             <LiveSimulator running={model.simulatorOn} onToggle={model.actions.toggleSimulator} />
             <TestActions
               config={model.config}
@@ -264,7 +264,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
             * lagi. Ia tetap di kolom — Req 34 AC8 menuntut setelan terlihat BERDAMPINGAN
             * dengan live preview, bukan menutupinya lewat modal.
             */}
-          <div className="stack stack-split stack-lo">
+          <div className="stack-lo stack-split">
             <Alerts
               alerts={model.media.alerts}
               cues={model.media.cues}
@@ -303,12 +303,12 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
           data-testid="column-monitor"
         >
           <div className="flex w-full items-center justify-between gap-3 px-1">
-            <span className="font-data text-[10.5px] font-semibold uppercase tracking-[0.22em] text-muted">
+            <span className="font-ui text-[11px] font-semibold text-muted">
               Preview arena ·{' '}
               {model.config.overlay.orientation === 'portrait' ? '9:16' : '16:9'}
             </span>
             <span
-              className={`flex items-center gap-1.5 font-ui text-[9.5px] font-bold uppercase tracking-[0.14em] ${
+              className={`flex items-center gap-1.5 font-ui text-[11px] font-semibold ${
                 broadcast === 'idle' ? 'text-muted' : 'text-ok'
               }`}
             >
@@ -383,7 +383,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
           className="column-scroll flex min-h-0 flex-col gap-3 overflow-y-auto"
           data-testid="column-chat"
         >
-          <div className="stack">
+          <div className="stack-lo">
             <Soundboard
               cues={model.media.cues}
               musicVolume={model.media.musicVolume}
@@ -398,7 +398,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
             * sampai gift jadi ramai: daftar gifter memanjang tanpa batas dan mendorong
             * kolom komentar keluar layar, persis di menit yang paling ramai.
             */}
-          <div className="stack flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="stack-lo flex min-h-0 flex-1 flex-col overflow-hidden">
             <Boards
               chat={
                 <ChatLog

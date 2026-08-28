@@ -41,11 +41,9 @@ export function LiveStats(props: StatsInput): ReactElement {
       </div>
 
       <div className="mt-2.5 flex items-center justify-between gap-2 rounded-[10px] border border-white/[0.08] bg-ink/55 px-[11px] py-2">
-        <span className="font-ui text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Status sesi
-        </span>
+        <span className="font-ui text-[11px] font-semibold text-muted">Status sesi</span>
         <span
-          className={`flex items-center gap-1.5 font-data text-[11px] font-semibold uppercase tracking-[0.1em] ${
+          className={`flex items-center gap-1.5 font-ui text-[11px] font-semibold ${
             view.dim ? 'text-standby' : 'text-ok'
           }`}
         >

@@ -6,15 +6,10 @@
     <title>Live Game Animator</title>
     <!--
       Dua famili dari desain Interactify: Chakra Petch untuk angka dan label berjarak lebar,
-      Saira untuk teks biasa. Keduanya punya fallback system-ui di tailwind.config.js, jadi
-      OBS tanpa jaringan tetap menggambar halaman yang benar — hanya bentuk hurufnya beda.
+      Saira untuk teks biasa. Keduanya di-bundel lewat @fontsource di `dashboard.css`, BUKAN
+      dari CDN Google: berkasnya ikut chunk dashboard, jadi halaman overlay yang harus
+      transparan di OBS tidak menarik satu berkas huruf pun yang tak pernah ia gambar.
     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Saira:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <style>
       html,
       body {

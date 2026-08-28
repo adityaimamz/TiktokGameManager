@@ -1058,6 +1058,94 @@ describe('nuke mengantre, bukan meledak seketika (Plan 6a)', () => {
     expect(state.pendingUltimates[0]?.nukeType).toBe('bomb')
   })
 
+  /**
+   * Opsi "sekaligus tambah HP" pada rule gift yang aksinya ultimate.
+   *
+   * Jumlahnya TETAP dan milik rule itu sendiri — bukan turunan koin, bukan turunan
+   * gameplay.hpGainedPerGrow yang melayani jalur like. Yang memilah gift mahal dari gift murah
+   * adalah minCount dan daftar nama gift di rule, bukan aritmetika di sini.
+   */
+  const pushGrowingNukeRule = (config: ReturnType<typeof setup>['config'], hp: number): void => {
+    config.triggers.push({
+      id: 'gift-nuke',
+      label: 'Nuke',
+      enabled: true,
+      when: { kind: 'gift', giftNames: [], minCount: 1 },
+      then: {
+        actionType: 'nuke',
+        target: 'sideB',
+        value: 50,
+        nukeType: 'laser',
+        growWithNuke: hp,
+      },
+      legend: { show: true, caption: 'NUKE', icon: 'gift' },
+    })
+  }
+
+  it('menumbuhkan maxHp pengirim sebesar angka tetap milik rule', () => {
+    const { deps, config, add } = setup()
+    pushGrowingNukeRule(config, 500)
+    const caster = add('andi', 'a')
+    add('cici', 'b')
+    const before = caster.maxHp
+
+    applyAction(nuke('andi', sideTarget('b'), 30), deps)
+
+    expect(caster.maxHp).toBe(before + 500)
+    expect(caster.hp).toBe(before + 500)
+  })
+
+  it('memberi HP yang sama untuk gift murah dan gift mahal', () => {
+    const { deps, config, add } = setup()
+    config.gameplay.hpGainedPerGrow = 5
+    pushGrowingNukeRule(config, 500)
+    const cheap = add('andi', 'a')
+    const rich = add('budi', 'a')
+    add('cici', 'b')
+    const before = cheap.maxHp
+
+    applyAction(nuke('andi', sideTarget('b'), 1), deps)
+    applyAction(nuke('budi', sideTarget('b'), 1000), deps)
+
+    expect(cheap.maxHp).toBe(before + 500)
+    expect(rich.maxHp).toBe(before + 500)
+  })
+
+  it('tidak menumbuhkan apa pun saat rule tidak menyebut angkanya', () => {
+    const { deps, config, add } = setup()
+    pushGrowingNukeRule(config, 0)
+    const caster = add('andi', 'a')
+    add('cici', 'b')
+    const before = caster.maxHp
+
+    applyAction(nuke('andi', sideTarget('b'), 30), deps)
+
+    expect(caster.maxHp).toBe(before)
+  })
+
+  it('tetap menerbitkan PERSIS satu actionApplied, bukan dua', () => {
+    const { deps, config, events, add } = setup()
+    pushGrowingNukeRule(config, 500)
+    add('andi', 'a')
+    add('cici', 'b')
+
+    applyAction(nuke('andi', sideTarget('b'), 30), deps)
+
+    expect(events.filter((e) => e.type === 'actionApplied')).toHaveLength(1)
+  })
+
+  it('tetap menembakkan ultimate saat pengirim tidak punya fighter untuk ditumbuhkan', () => {
+    const { deps, state, config, add } = setup()
+    config.gameplay.autoJoinGifter = false
+    pushGrowingNukeRule(config, 500)
+    add('andi', 'a')
+    add('cici', 'b')
+
+    applyAction(nuke('dedi', sideTarget('b'), 30), deps)
+
+    expect(state.pendingUltimates).toHaveLength(1)
+  })
+
   it('gifter tanpa fighter memakai casterSlot NO_SLOT dan origin di tepi luar sisinya', () => {
     const { deps, state, config, add } = setup()
     config.gameplay.autoJoinGifter = false

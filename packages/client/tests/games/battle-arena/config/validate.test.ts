@@ -423,6 +423,39 @@ describe('config ultimate (Plan 6a)', () => {
     expect(config.triggers[0]?.then.nukeType).toBe('laser')
     expect(config.triggers[1]?.then.nukeType).toBeUndefined()
   })
+
+  /*
+   * `growWithNuke` mengikuti aturan `nukeType`, plus satu syarat lagi: hanya gift yang membawa
+   * koin untuk diskalakan. Dibiarkan hidup di rule like atau di aksi non-nuke, ia jadi field
+   * mati yang membuat panel berperilaku beda sebelum dan sesudah reload.
+   */
+  it('mempertahankan then.growWithNuke hanya pada rule gift yang aksinya nuke', () => {
+    const config = validateConfig({
+      triggers: [
+        {
+          id: 'gift-nuke',
+          when: { kind: 'gift', giftNames: [], minCount: 1 },
+          then: { actionType: 'nuke', target: 'enemySide', growWithNuke: 500 },
+          legend: { show: true, caption: 'NUKE', icon: 'gift' },
+        },
+        {
+          id: 'like-nuke',
+          when: { kind: 'like', everyNLikes: 10 },
+          then: { actionType: 'nuke', target: 'enemySide', growWithNuke: 500 },
+          legend: { show: true, caption: 'NUKE', icon: 'like' },
+        },
+        {
+          id: 'gift-heal',
+          when: { kind: 'gift', giftNames: [], minCount: 1 },
+          then: { actionType: 'heal', target: 'sender', value: 10, growWithNuke: 500 },
+          legend: { show: true, caption: 'HEAL', icon: 'gift' },
+        },
+      ],
+    })
+    expect(config.triggers[0]?.then.growWithNuke).toBe(500)
+    expect(config.triggers[1]?.then.growWithNuke).toBeUndefined()
+    expect(config.triggers[2]?.then.growWithNuke).toBeUndefined()
+  })
 })
 
 describe('validateConfig — filler', () => {

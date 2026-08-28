@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GAMES } from '../../../src/platform/registry/index.js'
-import { Lobby } from '../../../src/ui/dashboard/Lobby.js'
+import type { GameEntry } from '../../../src/platform/registry/index.js'
+import { CatalogueGrid, Lobby } from '../../../src/ui/dashboard/Lobby.js'
 
 afterEach(() => {
   cleanup()
@@ -23,7 +24,29 @@ describe('Lobby', () => {
     for (const game of GAMES) {
       expect(await screen.findAllByText(game.label)).not.toHaveLength(0)
     }
-    expect(screen.getByText(`${GAMES.length} aktif · 2 menyusul`)).toBeTruthy()
+  })
+
+  /**
+   * Dinding empat kolom berisi SATU game sungguhan plus tiga kotak kosong mengatakan yang
+   * sebaliknya dari yang dimaksud: ia terbaca sebagai katalog yang gagal diisi, bukan
+   * sebagai platform yang siap menampung game kedua. Satu kalimat jujur lebih baik.
+   */
+  it('hides the catalogue grid while there is only one game', async () => {
+    stubHealth(true)
+    render(<Lobby onOpen={() => {}} />)
+
+    expect(await screen.findByText(/Game kedua menyusul/)).toBeTruthy()
+    expect(screen.queryByText('Slot kosong')).toBeNull()
+    expect(screen.queryByText('Tambah game')).toBeNull()
+  })
+
+  it('draws the grid once a second game exists', () => {
+    const second: GameEntry = { ...GAMES[0]!, id: 'battle-arena', label: 'Game Dua' }
+
+    render(<CatalogueGrid games={[GAMES[0]!, second]} />)
+
+    expect(screen.getByText('Game Dua')).toBeTruthy()
+    expect(screen.getAllByText('Slot kosong')).not.toHaveLength(0)
   })
 
   it('opens the game whose card was clicked', async () => {

@@ -55,9 +55,7 @@ export function UltimateButtons(props: UltimateButtonsProps): ReactElement {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="font-ui text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Uji ultimate
-        </span>
+        <span className="font-ui text-[11px] font-semibold text-muted">Uji ultimate</span>
 
         {/* Ultimate selalu punya SASARAN. Tanpa pilihan ini tombolnya berbohong soal siapa
             yang kena — dan yang benar-benar terkena damage adalah sisi yang dipilih di sini. */}
@@ -81,7 +79,7 @@ export function UltimateButtons(props: UltimateButtonsProps): ReactElement {
         {ULTIMATES.map((ultimate) => (
           <button
             aria-pressed={props.currentKind === ultimate.kind}
-            className={`flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-1 py-2 font-data text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+            className={`flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-1 py-2 font-ui text-[11px] font-semibold transition-colors ${
               props.currentKind === ultimate.kind
                 ? 'border-[#BE96FF]/60 bg-[#A06EFF]/[0.28] text-[#EADFFF]'
                 : 'border-white/[0.12] bg-white/[0.045] text-dim hover:bg-white/[0.09]'

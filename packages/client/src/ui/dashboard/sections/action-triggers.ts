@@ -258,7 +258,11 @@ export function withActionChoice(
     // Dibuang, bukan disimpan diam-diam: `validateRule` juga membuang `nukeType` dari rule
     // non-nuke, jadi menyisakannya di memori berarti dropdown berperilaku beda sebelum dan
     // sesudah reload.
-    return withThen(config, ruleId, { actionType: choice as BattleActionType, nukeType: undefined })
+    return withThen(config, ruleId, {
+      actionType: choice as BattleActionType,
+      nukeType: undefined,
+      growWithNuke: undefined,
+    })
   }
   return withThen(config, ruleId, {
     actionType: 'nuke',
@@ -327,8 +331,36 @@ export function captionFor(rule: TriggerRule): string {
       : ACTION_CAPTION[rule.then.actionType]
   // 'spawn' sudah menyebut sasarannya lewat {side}; menambahkan target kedua akan berbunyi
   // "JOIN {side} {side}".
+  // Bonus growWithNuke sengaja TIDAK disebut di sini: ia urusan pengirimnya sendiri, sementara
+  // rail arena cuma setinggi 18% panggung dan tiap kata di sana dibayar dengan kartu yang tidak
+  // muat. Yang harus dijanjikan legend adalah ultimate-nya, dan itu sudah.
   if (rule.then.actionType === 'spawn') return `${action} {side}`.slice(0, 40)
   return `${action} ${TARGET_CAPTION[rule.then.target]}`.trim().slice(0, 40)
+}
+
+/**
+ * Bonus HP tetap pada rule gift yang aksinya ultimate.
+ *
+ * Nol disimpan sebagai ABSEN — `validateRule` juga membuangnya, jadi menyimpan nol berarti
+ * config di memori berbeda bentuk dari config yang sama setelah reload. Alasan yang persis
+ * sama dengan `nukeType` di `withActionChoice`.
+ */
+export function withGrowWithNuke(
+  config: BattleArenaConfig,
+  ruleId: string,
+  hp: number,
+): BattleArenaConfig {
+  return withThen(config, ruleId, { growWithNuke: hp > 0 ? hp : undefined })
+}
+
+/**
+ * Apakah baris rule ini boleh menampilkan opsi tambah HP.
+ *
+ * Syaratnya sama dengan yang ditegakkan `validateRule`, dan dibaca dari satu fungsi ini supaya
+ * panel tidak bisa menampilkan kontrol untuk sesuatu yang config-nya akan buang saat disimpan.
+ */
+export function canGrowWithNuke(rule: Pick<TriggerRule, 'when' | 'then'>): boolean {
+  return rule.then.actionType === 'nuke' && rule.when.kind === 'gift'
 }
 
 function mapRule(

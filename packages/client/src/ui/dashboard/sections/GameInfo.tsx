@@ -16,7 +16,7 @@ function Readout({ side, align }: { side: SideReadout; align: 'left' | 'right' }
   return (
     <div className={align === 'right' ? 'min-w-0 text-right' : 'min-w-0'}>
       <span
-        className="mb-px block truncate font-ui text-[9.5px] font-bold uppercase tracking-[0.18em]"
+        className="mb-px block truncate font-ui text-[11px] font-semibold"
         style={{ color: side.color }}
       >
         {side.name}
@@ -89,9 +89,7 @@ export function GameInfo(props: GameInfoProps): ReactElement {
         <div className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-white/[0.08] bg-ink/55 py-2">
           <Icon name="users" size={12} className="text-muted" />
           <span className="font-data text-[12.5px] font-bold text-signal">{view.fighterTotal}</span>
-          <span className="font-ui text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted">
-            Fighter
-          </span>
+          <span className="font-ui text-[11px] font-semibold text-muted">Fighter</span>
         </div>
         <button
           className="btn-danger flex flex-none items-center gap-1.5 rounded-[9px] border px-3 py-[9px] text-[11px]"

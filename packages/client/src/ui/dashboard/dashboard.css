@@ -1,3 +1,18 @@
+/*
+ * Font di-bundel, bukan diambil dari CDN Google.
+ *
+ * Berkasnya hanya masuk chunk dashboard — overlay tidak pernah mengimpor berkas ini, dan
+ * canvas arena memang menggambar dengan `system-ui`. Jadi halaman yang harus transparan di
+ * OBS tidak lagi membayar satu permintaan jaringan pun untuk huruf yang tak pernah ia pakai.
+ */
+@import '@fontsource/saira/400.css';
+@import '@fontsource/saira/500.css';
+@import '@fontsource/saira/600.css';
+@import '@fontsource/saira/700.css';
+@import '@fontsource/chakra-petch/500.css';
+@import '@fontsource/chakra-petch/600.css';
+@import '@fontsource/chakra-petch/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,9 +21,15 @@
  * Bahasa permukaan Interactify: KACA di atas ruang gelap berkabut dua warna.
  *
  * Setiap kartu adalah bidang tembus pandang tipis (gradien putih 6% → 2%) dengan garis
- * rambut putih 10% dan bayangan jatuh yang dalam. Yang membedakan derajat kartu bukan
- * warnanya melainkan seberapa banyak cahaya yang ia tangkap: `.stack-hi` paling terang,
+ * rambut putih 10% dan bayangan jatuh. Yang membedakan derajat kartu bukan warnanya
+ * melainkan seberapa banyak cahaya yang ia tangkap: `.stack-hi` paling terang,
  * `.stack-lo` nyaris rata dengan latar.
+ *
+ * `.stack-lo` adalah DEFAULT-nya, bukan `.stack`. Saat setiap panel dibungkus kaca penuh,
+ * tidak ada satu pun yang terbaca sebagai terangkat — kedalaman hanya berarti sesuatu
+ * kalau ada yang lebih dangkal di sebelahnya. Kaca penuh karena itu disisakan untuk dua
+ * permukaan: kartu status siaran di puncak kolom kendali, dan bingkai monitor (yang punya
+ * kelasnya sendiri). Sisanya panel datar yang dipisahkan garis rambut.
  */
 @layer components {
   .stack {
@@ -17,7 +38,7 @@
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     box-shadow:
-      0 14px 36px rgb(0 0 0 / 45%),
+      0 10px 26px rgb(0 0 0 / 34%),
       inset 0 1px 0 rgb(255 255 255 / 8%);
   }
   /*
@@ -32,13 +53,20 @@
     @apply border-white/[0.14];
     background: linear-gradient(180deg, rgb(255 255 255 / 8.5%), rgb(255 255 255 / 3%));
     box-shadow:
-      0 18px 44px rgb(0 0 0 / 55%),
+      0 12px 30px rgb(0 0 0 / 40%),
       inset 0 1px 0 rgb(255 255 255 / 12%);
   }
+  /*
+   * BERDIRI SENDIRI, bukan pengubah di atas `.stack`.
+   *
+   * `.stack-hi` masih pengubah — ia hanya menaikkan cahaya kartu kaca. `.stack-lo` justru
+   * meniadakannya: tanpa blur dan tanpa bayangan, yang tersisa dari `.stack` cuma bentuk
+   * dan garisnya, jadi menuliskan keduanya di sini lebih jujur daripada menumpuk dua kelas
+   * yang saling membatalkan.
+   */
   .stack-lo {
-    @apply border-white/[0.07];
-    background: rgb(255 255 255 / 2.5%);
-    box-shadow: none;
+    @apply rounded-[14px] border border-white/[0.07];
+    background: rgb(255 255 255 / 3%);
   }
   /* Satu panel di dalam tumpukan. Ia tidak menggambar apa pun sendiri. */
   .panel {
@@ -54,8 +82,20 @@
   .panel-title-sub {
     @apply text-muted;
   }
+  /*
+   * SATU tier kapital-berjarak, dan `.panel-title` di atas adalah tier itu.
+   *
+   * Sebelumnya hampir tiap label memakainya — judul panel, label angka, penghitung
+   * accordion, chip, tombol teks — dan akibatnya justru kebalikan dari yang dimaksud:
+   * kalau semua benda berteriak, tidak ada yang terdengar, dan halamannya terbaca sebagai
+   * template. Sisanya sekarang Saira kalimat biasa; hierarkinya dibawa UKURAN dan tangga
+   * warna yang memang sudah ada (`signal → label → dim → muted → faint`).
+   *
+   * Ukurannya naik saat kapitalnya turun: huruf 9px hanya terbaca karena berjarak lebar,
+   * dan mencabut jaraknya tanpa mengembalikan ukurannya menukar satu masalah dengan yang lain.
+   */
   .panel-action {
-    @apply rounded font-data text-[10px] uppercase tracking-[0.12em] text-muted transition-colors hover:text-signal;
+    @apply rounded font-ui text-[11px] font-medium text-muted transition-colors hover:text-signal;
   }
   /* Ikon judul: 14px, diwarnai per kartu lewat `style`, tidak pernah memenuhi ruang. */
   .panel-icon {
@@ -80,7 +120,7 @@
     @apply inline-block text-faint transition-transform duration-150;
   }
   .acc-count {
-    @apply ml-auto font-data text-[10px] font-normal uppercase tracking-[0.1em] text-faint;
+    @apply ml-auto font-ui text-[11px] font-medium text-faint;
   }
   .acc-body {
     @apply px-3.5 pb-3.5;
@@ -94,7 +134,7 @@
   }
   /* Tombol biru: aksi yang menyambungkan atau memulai. */
   .btn-primary {
-    @apply border-[#5AA0FF]/40 font-data font-semibold uppercase tracking-[0.08em] text-[#DCEBFF];
+    @apply border-[#5AA0FF]/40 font-ui font-semibold text-[#DCEBFF];
     background: linear-gradient(180deg, rgb(60 130 255 / 32%), rgb(60 130 255 / 14%));
   }
   .btn-primary:hover:not(:disabled) {
@@ -102,25 +142,15 @@
   }
   /* Tombol amber: gladi bersih — sengaja tidak biru, supaya tidak tertukar dengan live. */
   .btn-rehearse {
-    @apply border-[#FFBE5A]/35 font-data font-semibold uppercase tracking-[0.12em] text-[#FFD9A0];
+    @apply border-[#FFBE5A]/35 font-ui font-semibold text-[#FFD9A0];
     background: linear-gradient(180deg, rgb(255 170 50 / 24%), rgb(255 120 40 / 12%));
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
-  }
-  /* Satu-satunya tombol dengan gradien tiga warna: pintu ke seluruh setelan game. */
-  .btn-hero {
-    @apply border-[#966EFF]/45 font-data font-semibold uppercase tracking-[0.1em] text-white;
-    background: linear-gradient(120deg, #2f6bff, #8a3bff 55%, #ff2d78);
-    background-size: 200% 100%;
-    box-shadow:
-      0 0 24px rgb(120 70 255 / 45%),
-      inset 0 1px 0 rgb(255 255 255 / 28%);
-    animation: ia-shift 7s linear infinite;
   }
   .btn-quiet {
     @apply border-white/10 bg-transparent text-dim hover:text-signal;
   }
   .btn-danger {
-    @apply border-tally/30 bg-tally/10 font-data font-semibold uppercase tracking-[0.1em] text-[#FF9DB4] hover:border-tally/50 hover:bg-tally/20;
+    @apply border-tally/30 bg-tally/10 font-ui font-semibold text-[#FF9DB4] hover:border-tally/50 hover:bg-tally/20;
   }
   /* Tombol ikon persegi di header. */
   .btn-icon {
@@ -143,7 +173,7 @@
     @apply w-full rounded-[9px] border border-white/[0.11] bg-ink/70 px-3 py-2 font-ui text-[13px] text-signal transition-colors placeholder:text-faint focus:border-[#5AA0FF]/50 focus:outline-none;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2 py-[3px] font-data text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2 py-[3px] font-ui text-[11px] font-semibold text-muted;
   }
   .chip-standby {
     @apply border-standby/35 bg-standby/10 text-standby;
@@ -161,12 +191,12 @@
   .field {
     @apply flex justify-between gap-3 py-1 text-xs;
   }
-  /* Kotak angka besar: label 9px berjarak lebar di atas angka Chakra Petch bercahaya. */
+  /* Kotak angka besar: label kalimat biasa di atas angka Chakra Petch bercahaya. */
   .stat-tile {
     @apply rounded-[10px] border px-[11px] py-2.5;
   }
   .readout-label {
-    @apply mb-[3px] block font-ui text-[9px] font-semibold uppercase tracking-[0.16em] text-muted;
+    @apply mb-[3px] block font-ui text-[10.5px] font-medium text-muted;
   }
   .readout-value {
     @apply font-data text-[40px] font-bold leading-[0.92] tabular-nums;
@@ -323,14 +353,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes ia-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 200% 50%;
   }
 }
 @keyframes ia-spin {
@@ -541,7 +563,6 @@
 @media (prefers-reduced-motion: reduce) {
   .onair-live,
   .chat-row,
-  .btn-hero,
   [class*='animate-ia'],
   .ia-anim {
     animation: none !important;

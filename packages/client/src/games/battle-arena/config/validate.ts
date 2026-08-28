@@ -6,6 +6,7 @@ import {
   FILLER_ITEMS_MAX,
   FILLER_URL_MAX_LENGTH,
   GIFT_MIN_COUNT_RANGE,
+  GROW_WITH_NUKE_RANGE,
   GIFT_NAME_MAX_LENGTH,
   KEYWORD_MAX_LENGTH,
   LEGEND_CAPTION_MAX_LENGTH,
@@ -151,6 +152,8 @@ function validateRule(
   const actionType = oneOf(thenRaw.actionType, ACTION_TYPES, null as (typeof ACTION_TYPES)[number] | null)
   if (actionType === null) return null
 
+  const growWithNuke = num(thenRaw.growWithNuke, GROW_WITH_NUKE_RANGE, 0)
+
   const legendRaw = isRecord(raw.legend) ? raw.legend : {}
   return {
     id,
@@ -174,6 +177,13 @@ function validateRule(
       // boleh menyeret field mati ke config creator.
       ...(actionType === 'nuke' && NUKE_TYPES.includes(thenRaw.nukeType as (typeof NUKE_TYPES)[number])
         ? { nukeType: thenRaw.nukeType as TriggerRule['then']['nukeType'] }
+        : {}),
+      // Aturan nukeType, plus satu syarat lagi: hanya rule gift yang punya syarat mahal-murahnya
+      // sendiri (minCount, daftar nama), jadi kolom ini pada rule like/follow/komentar akan jadi
+      // kontrol yang berbohong. Nol dan angka di luar akal disimpan sebagai KETIADAAN — satu
+      // bentuk saja untuk "mati", atau panel berperilaku beda sebelum dan sesudah reload.
+      ...(actionType === 'nuke' && when.kind === 'gift' && growWithNuke > 0
+        ? { growWithNuke }
         : {}),
     },
     legend: {

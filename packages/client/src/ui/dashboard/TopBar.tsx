@@ -100,7 +100,7 @@ export function TopBar(props: TopBarProps): ReactElement {
         */}
       <div className="flex min-w-0 flex-1 justify-center">
         <div className="flex w-full max-w-[560px] items-center overflow-hidden rounded-[10px] border border-white/[0.11] bg-ink/70">
-          <span className="flex select-none items-center self-stretch whitespace-nowrap border-r border-white/[0.09] px-3 font-ui text-[9.5px] font-bold uppercase tracking-[0.18em] text-muted">
+          <span className="flex select-none items-center self-stretch whitespace-nowrap border-r border-white/[0.09] px-3 font-ui text-[11px] font-semibold text-muted">
             OBS URL
           </span>
           <input
@@ -116,7 +116,7 @@ export function TopBar(props: TopBarProps): ReactElement {
             */}
           <span
             data-testid="overlay-count"
-            className="flex flex-none select-none items-center gap-1.5 self-stretch whitespace-nowrap border-l border-white/[0.09] px-2.5 font-data text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+            className="flex flex-none select-none items-center gap-1.5 self-stretch whitespace-nowrap border-l border-white/[0.09] px-2.5 font-ui text-[11px] font-semibold"
             style={{ color: props.overlayCount > 0 ? '#7CE0A8' : 'rgba(232,236,248,.45)' }}
             title="Overlay di device lain yang sedang menerima siaran arena ini."
           >
@@ -165,7 +165,7 @@ export function TopBar(props: TopBarProps): ReactElement {
           <Icon name="expand" size={15} />
         </button>
         <button
-          className="btn-hero flex shrink-0 items-center gap-2 rounded-[9px] border px-4 py-[9px] text-[12.5px]"
+          className="btn-primary flex shrink-0 items-center gap-2 rounded-[9px] border px-4 py-[9px] text-[12.5px]"
           type="button"
           aria-label="Setelan game"
           onClick={props.onOpenSettings}

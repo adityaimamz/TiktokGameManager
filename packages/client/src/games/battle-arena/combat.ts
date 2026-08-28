@@ -128,6 +128,21 @@ export function ensureGifterJoined(action: BattleAction, deps: CombatDeps): void
  * Inilah penyimpangan sadar dari Req 5 AC1 yang membuat angka HP ratusan seperti di
  * screenshot bisa tercapai lewat akumulasi like. Mengembalikan HP yang diperoleh.
  */
+/**
+ * Satu-satunya tempat maxHp naik.
+ *
+ * `hp` ikut naik sebesar yang sama, dan itu bukan kemudahan: `fighterScale` membaca HP
+ * BERJALAN, jadi plafon yang membesar tanpa isinya justru MENGECILKAN fighter-nya. Dua
+ * pemanggil — Grow biasa dan bonus `growWithNuke` — melewati fungsi ini supaya aturan itu
+ * tidak bisa berlaku di satu jalur saja.
+ */
+export function raiseMaxHp(fighter: Fighter, amount: number): number {
+  if (amount <= 0) return 0
+  fighter.maxHp += amount
+  fighter.hp += amount
+  return amount
+}
+
 export function growFighter(fighter: Fighter, units: number, deps: CombatDeps): number {
   const perGrow = deps.config.gameplay.hpGainedPerGrow
 
@@ -135,10 +150,7 @@ export function growFighter(fighter: Fighter, units: number, deps: CombatDeps): 
   // Yang membedakannya hanya SATUAN yang dipasok trigger, dan hanya kondisi rule yang
   // bisa tahu satuan mana yang berlaku (§4 spec).
   if (deps.config.gameplay.growMode !== 'flat') {
-    const gained = perGrow * Math.max(0, units)
-    fighter.maxHp += gained
-    fighter.hp += gained
-    return gained
+    return raiseMaxHp(fighter, perGrow * Math.max(0, units))
   }
 
   const threshold = deps.config.likes.threshold
@@ -147,9 +159,7 @@ export function growFighter(fighter: Fighter, units: number, deps: CombatDeps): 
   let gained = 0
   while (fighter.likeAccumulator >= threshold) {
     fighter.likeAccumulator -= threshold
-    fighter.maxHp += perGrow
-    fighter.hp += perGrow
-    gained += perGrow
+    gained += raiseMaxHp(fighter, perGrow)
   }
   return gained
 }
@@ -353,8 +363,26 @@ export function applyAction(action: BattleAction, deps: CombatDeps): void {
         originY: origin.position.y,
       })
 
+      // Bonus "sekaligus tambah HP": jumlah TETAP milik rule ini, tidak dikalikan koin dan
+      // tidak membaca gameplay.hpGainedPerGrow yang melayani jalur like. Yang memilah gift
+      // mahal dari gift murah adalah minCount dan daftar nama gift di rule yang sama, jadi
+      // aritmetika di sini hanya akan menduakan syarat yang sudah ada di atasnya.
+      if (caster !== undefined) {
+        const gained = raiseMaxHp(caster, rule?.then.growWithNuke ?? 0)
+        if (gained > 0) {
+          spawnGameEffect(deps.state.effects, deps.config, {
+            type: 'heal',
+            x: caster.position.x,
+            y: caster.position.y,
+            value: gained,
+          })
+        }
+      }
+
       // Terbit SAAT TEMBAK dan tanpa syarat: gift history harus muncul seketika, dan
-      // pemilihan korban bukan lagi syarat pengakuan (spec §8).
+      // pemilihan korban bukan lagi syarat pengakuan (spec §8). SATU untuk seluruh aksi:
+      // yang kedua akan membuat gift ini muncul dua kali di history dan koinnya dihitung
+      // dua kali oleh ledger.
       deps.emit({ type: 'actionApplied', action })
       return
     }

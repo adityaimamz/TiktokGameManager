@@ -7,7 +7,7 @@ import {
   MAX_TRIGGER_RULES,
 } from '../../../../src/games/battle-arena/config/index.js'
 import type { BattleArenaConfig } from '../../../../src/games/battle-arena/config/index.js'
-import { addRule } from '../../../../src/ui/dashboard/sections/action-triggers.js'
+import { addRule, withActionChoice } from '../../../../src/ui/dashboard/sections/action-triggers.js'
 import { ActionTriggers } from '../../../../src/ui/dashboard/sections/ActionTriggers.js'
 
 afterEach(cleanup)
@@ -30,6 +30,36 @@ describe('ActionTriggers', () => {
     expect(screen.getByText('Join Side A')).toBeTruthy()
     expect(screen.getByText('Join Side B')).toBeTruthy()
     expect(screen.getByText('Grow my blob (HP)')).toBeTruthy()
+  })
+
+  /*
+   * Kolom tambah HP hanya boleh tampil di rule gift yang aksinya ultimate: di luar itu
+   * `validateRule` membuang field-nya, jadi kontrol yang tampil di sana akan lupa sendiri
+   * isinya begitu creator me-reload.
+   */
+  it('menawarkan kolom tambah HP hanya pada rule gift yang aksinya ultimate', async () => {
+    const label = 'Tambah HP pengirim'
+    const { unmount } = render(
+      <ActionTriggers config={defaultConfig()} onConfig={() => {}} fetchImpl={fetchCatalog} />,
+    )
+    expect(screen.queryAllByLabelText(label)).toHaveLength(0)
+    unmount()
+
+    const onConfig = vi.fn()
+    render(
+      <ActionTriggers
+        config={withActionChoice(defaultConfig(), 'gift-heal', 'nuke:laser')}
+        onConfig={onConfig}
+        fetchImpl={fetchCatalog}
+      />,
+    )
+    const field = screen.getByLabelText(label)
+    fireEvent.change(field, { target: { value: '500' } })
+    fireEvent.blur(field)
+
+    expect(firstConfig(onConfig).triggers.find((r) => r.id === 'gift-heal')?.then.growWithNuke).toBe(
+      500,
+    )
   })
 
   it('menyembunyikan rule dari layar tanpa mematikan pemicunya', async () => {

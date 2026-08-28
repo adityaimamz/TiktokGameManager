@@ -66,7 +66,7 @@ function EmptyState({ onRehearse }: { onRehearse?: () => void }): ReactElement {
       </div>
 
       <div>
-        <p className="m-0 mb-1.5 font-data text-[13px] font-semibold uppercase tracking-[0.1em] text-label">
+        <p className="m-0 mb-1.5 font-ui text-[13px] font-semibold text-label">
           Menunggu komentar
         </p>
         <p className="note m-0 mx-auto max-w-[220px]">
@@ -75,7 +75,7 @@ function EmptyState({ onRehearse }: { onRehearse?: () => void }): ReactElement {
       </div>
 
       {onRehearse === undefined ? null : (
-        <button className="btn font-data uppercase tracking-[0.12em]" type="button" onClick={onRehearse}>
+        <button className="btn" type="button" onClick={onRehearse}>
           Coba gladi bersih
         </button>
       )}
