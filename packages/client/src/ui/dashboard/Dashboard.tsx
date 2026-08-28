@@ -59,11 +59,6 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
   const { icons: giftIcons } = useGiftCatalog(undefined, model.connection.roomId)
   const broadcast = broadcastState(model.connection, model.simulatorOn)
 
-  /*
-   * Satu detak per detik untuk durasi siaran — dan sekalian untuk label "sejak" di daftar
-   * gifter, yang selama ini beku sampai ada render lain kebetulan lewat: `Date.now()` di
-   * dalam JSX hanya dievaluasi ulang saat komponennya dirender ulang karena sebab lain.
-   */
   const [leaving, setLeaving] = useState(false)
 
   /*
@@ -81,16 +76,24 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
     setLeaving(true)
   }
 
-  const leave = (disconnect: boolean): void => {
+  /*
+   * Koneksi TikTok sengaja TIDAK diputus.
+   *
+   * Creator yang cuma melirik katalog lalu kembali tidak boleh membayar sambung ulang, dan yang
+   * memang ingin memutusnya sudah punya tombol Putuskan di panel Koneksi.
+   */
+  const leave = (): void => {
     setLeaving(false)
     // Statistik dikirim SEBELUM navigasi: unmount berikutnya membongkar rig, dan ledger yang
     // ikut terbongkar tidak punya siapa pun lagi untuk mengirimkannya.
-    void model.actions.flushProgress().then(() => {
-      if (disconnect) model.actions.disconnect()
-      props.onBack?.()
-    })
+    void model.actions.flushProgress().then(() => props.onBack?.())
   }
 
+  /*
+   * Satu detak per detik untuk durasi siaran — dan sekalian untuk label "sejak" di daftar
+   * gifter, yang selama ini beku sampai ada render lain kebetulan lewat: `Date.now()` di
+   * dalam JSX hanya dievaluasi ulang saat komponennya dirender ulang karena sebab lain.
+   */
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000)

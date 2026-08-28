@@ -17,22 +17,29 @@ describe('LeaveDialog', () => {
     expect(onLeave).not.toHaveBeenCalled()
   })
 
-  it('keluar tanpa memutus koneksi', () => {
+  it('meninggalkan ruang kendali saat dikonfirmasi', () => {
     const onLeave = vi.fn()
     render(<LeaveDialog onCancel={() => {}} onLeave={onLeave} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Biarkan tersambung' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tinggalkan' }))
 
-    expect(onLeave).toHaveBeenCalledWith(false)
+    expect(onLeave).toHaveBeenCalledOnce()
   })
 
-  it('keluar sambil memutus koneksi', () => {
-    const onLeave = vi.fn()
-    render(<LeaveDialog onCancel={() => {}} onLeave={onLeave} />)
+  /*
+   * Dua tombol, bukan tiga. "Putuskan & keluar" dibuang: memutus koneksi sudah satu klik
+   * jauhnya di panel Koneksi, dan bertiga mereka tidak muat sebaris.
+   */
+  it('menawarkan tepat dua pilihan', () => {
+    render(<LeaveDialog onCancel={() => {}} onLeave={() => {}} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Putuskan & keluar' }))
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+  })
 
-    expect(onLeave).toHaveBeenCalledWith(true)
+  it('menyebut koneksi TikTok tetap hidup, karena memang begitu', () => {
+    render(<LeaveDialog onCancel={() => {}} onLeave={() => {}} />)
+
+    expect(screen.getByText(/Koneksi TikTok tetap hidup/)).toBeTruthy()
   })
 
   it('Escape membatalkan', () => {
