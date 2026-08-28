@@ -197,8 +197,20 @@ export class TikTokConnection {
     this.gifts = []
   }
 
+  /**
+   * Satu-satunya penulis status, dan karena itu satu-satunya tempat jam siaran diisi.
+   *
+   * Diisi SEKALI, saat sambungan pertama berhasil. Percobaan ulang yang berhasil menemukan
+   * nilainya sudah ada dan membiarkannya — itulah yang membuat jam siaran tidak me-restart
+   * tiap kali wifi creator berkedip. `connect()` dan `disconnect()` mengosongkannya lagi,
+   * gratis, karena keduanya sudah melewati `idleStatus()`.
+   */
   private setStatus(patch: Partial<ConnectionStatus>): void {
-    this.current = { ...this.current, ...patch }
+    const next = { ...this.current, ...patch }
+    if (next.state === 'connected' && next.connectedAtMs === null) {
+      next.connectedAtMs = this.opts.now()
+    }
+    this.current = next
     this.emitStatus()
   }
 

@@ -36,7 +36,7 @@ describe('createAlertWatcher', () => {
     const w = watcher(rules({ kind: 'gift', threshold: 500 }))
 
     expect(w.onMessage(gift(499))).toBeNull()
-    expect(w.onMessage(gift(500))?.text).toBe('budi mengirim Rose ×10!')
+    expect(w.onMessage(gift(500))?.text).toBe('budi sent Rose ×10!')
   })
 
   it('menyalakan milestone like sekali per kelipatan, meski satu event membawa puluhan like', () => {
@@ -44,7 +44,7 @@ describe('createAlertWatcher', () => {
 
     expect(w.onMessage(likes(60))).toBeNull()
     // 60 + 60 = 120: satu kelipatan terlewati, satu alert.
-    expect(w.onMessage(likes(60))?.text).toBe('100 like tercapai!')
+    expect(w.onMessage(likes(60))?.text).toBe('100 likes reached!')
     expect(w.onMessage(likes(30))).toBeNull()
   })
 
@@ -98,8 +98,8 @@ describe('createAlertWatcher', () => {
       createChatMessage({ id: 's1', kind: 'shareEvent', platform: 'tiktok', username: 'tono' }),
     )
 
-    expect(follow?.text).toBe('siti baru follow!')
-    expect(share?.text).toBe('tono membagikan live ini!')
+    expect(follow?.text).toBe('siti just followed!')
+    expect(share?.text).toBe('tono shared the stream!')
   })
 
   it('mengabaikan komentar biasa', () => {

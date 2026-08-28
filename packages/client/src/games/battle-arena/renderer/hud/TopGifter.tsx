@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { scaled } from '../layout.js'
 import type { StageLayout } from '../layout.js'
+import { formatCoins } from './view-model.js'
 import type { GifterRow } from './view-model.js'
 
 /** Duduk di seberang TOP FIGHTERS: dua papan, dua pertanyaan, satu baris pandang. */
@@ -33,7 +34,7 @@ export function TopGifter({
         TOP GIFTER
       </div>
       <div style={{ fontWeight: 700 }}>{row.username}</div>
-      <div style={{ opacity: 0.85 }}>{`${row.coins.toLocaleString('id-ID')} koin`}</div>
+      <div style={{ opacity: 0.85 }}>{`${formatCoins(row.coins)} coins`}</div>
     </div>
   )
 }

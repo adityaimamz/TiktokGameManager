@@ -1,3 +1,4 @@
+import type { ConnectionState } from '@lga/shared'
 import type { MatchState } from '../../games/battle-arena/state-machine.js'
 
 /**
@@ -10,4 +11,21 @@ import type { MatchState } from '../../games/battle-arena/state-machine.js'
  */
 export function shouldWarnOnUnload(state: MatchState): boolean {
   return state !== 'idle' && state !== 'result'
+}
+
+/** Koneksi yang benar-benar akan hilang kalau dashboard ditinggalkan. */
+const LIVE: readonly ConnectionState[] = ['connected', 'reconnecting']
+
+/**
+ * Apakah meninggalkan ruang kendali menghilangkan sesuatu.
+ *
+ * Perluasan `shouldWarnOnUnload`, bukan predikat kedua: keduanya menjawab pertanyaan yang sama
+ * untuk dua pintu yang berbeda — menutup tab dan kembali ke katalog — dan menyalinnya berarti
+ * dua jawaban yang pasti menyimpang.
+ *
+ * `connecting` sengaja TIDAK dihitung: percobaan sambung pertama belum punya apa pun untuk
+ * hilang, dan mengadang creator di situ hanya membuat tombol kembali terasa rusak.
+ */
+export function leaveWarning(match: MatchState, connection: ConnectionState): boolean {
+  return shouldWarnOnUnload(match) || LIVE.includes(connection)
 }

@@ -49,13 +49,15 @@ function Avatar({ initials, synthetic }: { initials: string; synthetic: boolean 
  * Tiga tab, tiga pertanyaan berbeda.
  *
  * "Live" adalah sesi dashboard ini, dihitung dari langganan chat. "Top" adalah papan gifter
- * sepanjang masa dari Neon, dan ia TIDAK memasukkan match yang sedang berjalan — koin ditulis
- * sekali saat match berakhir, menumpang MatchRecord. Itu justru gunanya tab Live berdampingan
- * dengannya. "Statistik" menjawab pertanyaan yang lain sama sekali: bagaimana match-match ini
- * berjalan (Req 34 AC6).
+ * sepanjang masa dari Neon, dan sejak Plan 13 ia IKUT memuat match yang sedang berjalan — koin
+ * dikirim `LiveLedger` tiap 30 detik, bukan sekali saat match berakhir. Tab Live tetap berdiri
+ * di sebelahnya karena ia menjawab pertanyaan lain: siapa yang menyumbang di SESI ini, dengan
+ * gift terakhirnya. "Statistik" menjawab pertanyaan ketiga: bagaimana match-match ini berjalan
+ * (Req 34 AC6).
  *
- * Pemuatan terjadi saat tab diklik, satu panggilan per klik tanpa cache — papan ini berubah
- * sekali per match, dan match berakhir jauh lebih jarang daripada satu detik.
+ * Pemuatan tetap terjadi saat tab diklik, satu panggilan per klik tanpa cache dan tanpa
+ * auto-refresh. Isinya kini berubah tiap setengah menit, bukan tiap match — tapi papan ini
+ * dilirik, bukan ditonton, dan klik kedua sudah menyegarkannya.
  */
 export function Boards(props: BoardsProps): ReactElement {
   const [tab, setTab] = useState<Tab>('chat')
@@ -123,7 +125,7 @@ export function Boards(props: BoardsProps): ReactElement {
         {tab === 'top' ? (
           props.top.length === 0 ? (
             <p className="note px-3.5 py-4">
-              Belum ada papan sepanjang masa — ia terisi saat sebuah match selesai.
+              Belum ada papan sepanjang masa — ia terisi beberapa detik setelah gift pertama.
             </p>
           ) : (
             <ul className="flex flex-col gap-1.5 px-3.5 py-3">
@@ -148,7 +150,7 @@ export function Boards(props: BoardsProps): ReactElement {
         {tab === 'stats' ? (
           stats.empty && props.killers.length === 0 ? (
             <p className="note px-3.5 py-4">
-              Belum ada statistik — papan ini terisi saat sebuah match selesai.
+              Belum ada statistik — papan ini terisi beberapa detik setelah kill atau gift pertama.
             </p>
           ) : (
             <div className="flex flex-col gap-4 px-3.5 py-3">

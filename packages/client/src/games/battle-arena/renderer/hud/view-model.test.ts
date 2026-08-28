@@ -10,6 +10,7 @@ import { buildActionLegend } from '../../triggers.js'
 import {
   RAIL_BOTTOM_RESERVE_PX,
   calloutModel,
+  formatCoins,
   legendRails,
   matchStatusLabel,
   railCapacity,
@@ -67,9 +68,9 @@ describe('matchStatusLabel', () => {
 
   it('tetap menjelaskan arena yang diam', () => {
     expect(matchStatusLabel(view({ matchState: matchStateIndex('waitingFighters') }))).toBe(
-      'MENUNGGU PEMAIN',
+      'WAITING FOR PLAYERS',
     )
-    expect(matchStatusLabel(view({ matchState: matchStateIndex('countdown') }))).toBe('BERSIAP')
+    expect(matchStatusLabel(view({ matchState: matchStateIndex('countdown') }))).toBe('GET READY')
   })
 })
 
@@ -520,5 +521,13 @@ describe('legendRails', () => {
     config.triggers = config.triggers.map((rule) => ({ ...rule, enabled: false }))
 
     expect(legendRails(config)).toStrictEqual({ left: [], right: [] })
+  })
+})
+
+describe('formatCoins', () => {
+  it('memakai koma sebagai pemisah ribuan, bukan titik', () => {
+    expect(formatCoins(1_240)).toBe('1,240')
+    expect(formatCoins(999)).toBe('999')
+    expect(formatCoins(1_000_000)).toBe('1,000,000')
   })
 })

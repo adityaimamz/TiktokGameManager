@@ -62,6 +62,10 @@ describe('App', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Semua game' }))
 
+    // Meninggalkan ruang kendali membunuh match yang sedang berjalan, jadi ia bertanya dulu
+    // (Plan 13 §8). Lobi hanya muncul setelah creator memilih.
+    await userEvent.click(await screen.findByRole('button', { name: 'Biarkan tersambung' }))
+
     expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
     expect(window.location.pathname).toBe('/')
   })

@@ -20,6 +20,8 @@ export interface TopBarProps {
   onReadNotifications: () => void
   /** Kembali ke katalog game. Tanpa ini tombolnya tidak digambar sama sekali. */
   onBack?: () => void
+  /** Durasi siaran yang sudah diformat, atau `null` saat belum pernah tersambung. */
+  liveFor?: string | null
 }
 
 /** Pil siaran: warna DAN kata, karena warna saja tidak cukup untuk dibedakan. */
@@ -85,6 +87,11 @@ export function TopBar(props: TopBarProps): ReactElement {
           ) : null}
         </span>
         {BROADCAST_WORD[props.broadcast]}
+        {props.liveFor === null || props.liveFor === undefined ? null : (
+          <span className="font-data tracking-normal opacity-80" data-testid="live-for">
+            {`· ${props.liveFor}`}
+          </span>
+        )}
       </span>
 
       {/*

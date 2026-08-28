@@ -3,6 +3,7 @@ import type {
   GiftCatalogEntry,
   MatchRecord,
   MatchSummary,
+  PlayerProgress,
   PlayerStats,
 } from '@lga/shared'
 import type { PlayerSort } from './players.js'
@@ -15,6 +16,8 @@ import type { PlayerSort } from './players.js'
  */
 export interface Repos {
   recordMatch(record: MatchRecord): Promise<{ matchId: number }>
+  /** Delta statistik siaran, dikirim berkala selama match masih berjalan. */
+  recordProgress(entries: readonly PlayerProgress[]): Promise<number>
   recentMatches(limit: number): Promise<MatchSummary[]>
   topPlayers(limit: number, sort: PlayerSort): Promise<PlayerStats[]>
   recordAnalytics(events: AnalyticsEvent[], matchId: number | null): Promise<number>

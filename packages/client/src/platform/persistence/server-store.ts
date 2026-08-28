@@ -1,5 +1,11 @@
-import { APP_KEY_HEADER } from '@lga/shared'
-import type { AnalyticsEvent, MatchRecord, MatchSummary, PlayerStats } from '@lga/shared'
+import { APP_KEY_HEADER, APP_KEY_QUERY } from '@lga/shared'
+import type {
+  AnalyticsEvent,
+  MatchRecord,
+  MatchSummary,
+  PlayerProgress,
+  PlayerStats,
+} from '@lga/shared'
 import { serverBaseUrl } from '../server-url.js'
 
 export interface ServerStoreOptions {
@@ -45,6 +51,43 @@ export class ServerStore {
     if (body === null) return null
     const matchId = (body as Record<string, unknown>)['matchId']
     return typeof matchId === 'number' ? matchId : null
+  }
+
+  /**
+   * Delta statistik siaran. `false` berarti ledger menahan angkanya untuk kiriman berikutnya.
+   *
+   * Satu-satunya method di kelas ini yang nilai baliknya BERARTI: sisanya menelan galat dan
+   * mengembalikan nilai netral, sementara di sini "gagal" adalah informasi yang dipakai
+   * pemanggilnya untuk tidak membuang data.
+   */
+  async recordProgress(entries: readonly PlayerProgress[]): Promise<boolean> {
+    if (entries.length === 0) return true
+    const body = await this.post(
+      '/api/players/progress',
+      { players: entries },
+      'could not send live statistics',
+    )
+    return body !== null
+  }
+
+  /**
+   * Kiriman terakhir sebuah sesi, saat tab sedang ditutup.
+   *
+   * `fetch` yang dimulai pada `pagehide` dibatalkan browser; `sendBeacon` justru dirancang
+   * untuk momen ini, dan menutup tab adalah cara paling umum sebuah siaran berakhir. Harganya:
+   * ia tidak bisa memasang header, jadi kuncinya ikut di query — jalur yang sama yang sudah
+   * dipakai soket WebSocket.
+   */
+  beaconProgress(entries: readonly PlayerProgress[]): void {
+    if (entries.length === 0) return
+    if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') return
+
+    const key =
+      this.appKey === null || this.appKey === ''
+        ? ''
+        : `?${APP_KEY_QUERY}=${encodeURIComponent(this.appKey)}`
+    const blob = new Blob([JSON.stringify({ players: entries })], { type: 'application/json' })
+    navigator.sendBeacon(`${this.baseUrl}/api/players/progress${key}`, blob)
   }
 
   async sendAnalytics(events: readonly AnalyticsEvent[]): Promise<boolean> {

@@ -26,7 +26,7 @@ export async function recordMatch(
   const evictLimit = opts.evictLimit ?? MAX_PLAYERS
 
   return db.transaction(async (tx) => {
-    const ids = await upsertPlayers(tx, record.players, record.endedAtMs)
+    const ids = await upsertPlayers(tx, record.players, record.endedAtMs, 'match')
 
     const [inserted] = await tx
       .insert(matches)

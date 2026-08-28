@@ -60,10 +60,32 @@ export interface AlertRule {
 }
 
 export const DEFAULT_ALERTS: readonly AlertRule[] = [
-  { kind: 'gift', enabled: true, threshold: 500, cueId: null, text: '{user} mengirim {value}!' },
-  { kind: 'likes', enabled: true, threshold: 10000, cueId: null, text: '{value} like tercapai!' },
-  { kind: 'follow', enabled: true, threshold: 0, cueId: null, text: '{user} baru follow!' },
-  { kind: 'share', enabled: false, threshold: 0, cueId: null, text: '{user} membagikan live ini!' },
+  { kind: 'gift', enabled: true, threshold: 500, cueId: null, text: '{user} sent {value}!' },
+  { kind: 'likes', enabled: true, threshold: 10000, cueId: null, text: '{value} likes reached!' },
+  { kind: 'follow', enabled: true, threshold: 0, cueId: null, text: '{user} just followed!' },
+  { kind: 'share', enabled: false, threshold: 0, cueId: null, text: '{user} shared the stream!' },
+]
+
+/**
+ * Teks bawaan sebelum arena berbahasa Inggris (spec Plan 13 §9).
+ *
+ * Banner alert tampil di overlay OBS, jadi bahasanya urusan PENONTON — tapi kalimatnya
+ * tersimpan di localStorage creator, dan mengganti `DEFAULT_ALERTS` saja tidak akan pernah
+ * mencapainya. `normalizeMedia` memperlakukan teks yang PERSIS sama dengan salah satu di bawah
+ * sebagai "belum pernah disentuh" lalu mengembalikan default barunya.
+ *
+ * Tempatnya di sana, bukan di `config/migrations.ts`: alert tidak tinggal di config game sama
+ * sekali, melainkan menumpang blob `media.soundboard` yang tidak punya `schemaVersion`.
+ *
+ * ponytail: creator yang kebetulan mengetik ulang persis kalimat lama akan melihatnya
+ * berubah. Jauh lebih murah daripada menambahkan nomor versi ke blob yang selama ini hidup
+ * baik-baik tanpanya.
+ */
+export const LEGACY_ALERT_TEXTS: readonly string[] = [
+  '{user} mengirim {value}!',
+  '{value} like tercapai!',
+  '{user} baru follow!',
+  '{user} membagikan live ini!',
 ]
 
 export const ALERT_LABEL: Record<AlertKind, string> = {

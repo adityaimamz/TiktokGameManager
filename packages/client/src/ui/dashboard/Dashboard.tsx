@@ -6,10 +6,11 @@ import { BattleArenaRenderer } from '../../games/battle-arena/renderer/canvas.js
 import { computeStageLayout } from '../../games/battle-arena/renderer/layout.js'
 import { overlayOrigin, stageUrl } from '../routing.js'
 import { Stage } from '../Stage.js'
-import { broadcastState } from './broadcast.js'
-import { shouldWarnOnUnload } from './unload.js'
+import { broadcastState, liveDuration } from './broadcast.js'
+import { leaveWarning, shouldWarnOnUnload } from './unload.js'
 import type { UltimateKind } from './ultimate.js'
 import { fitPortrait, useElementSize } from './useElementSize.js'
+import { LeaveDialog } from './LeaveDialog.js'
 import { TopBar } from './TopBar.js'
 import { useGiftCatalog } from '../useGiftCatalog.js'
 import { ActionTriggers } from './sections/ActionTriggers.js'
@@ -57,6 +58,44 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
   // harus menembus tiga komponen.
   const { icons: giftIcons } = useGiftCatalog(undefined, model.connection.roomId)
   const broadcast = broadcastState(model.connection, model.simulatorOn)
+
+  /*
+   * Satu detak per detik untuk durasi siaran — dan sekalian untuk label "sejak" di daftar
+   * gifter, yang selama ini beku sampai ada render lain kebetulan lewat: `Date.now()` di
+   * dalam JSX hanya dievaluasi ulang saat komponennya dirender ulang karena sebab lain.
+   */
+  const [leaving, setLeaving] = useState(false)
+
+  /*
+   * Tombol ‹ bertanya dulu, tapi hanya kalau ada yang benar-benar hilang.
+   *
+   * Meninggalkan ruang kendali membongkar rig: match berhenti, kill feed mati, dan siaran ke
+   * overlay ikut mati. Creator yang belum memulai apa pun tidak diadang.
+   */
+  const requestBack = (): void => {
+    if (props.onBack === undefined) return
+    if (!leaveWarning(model.matchState, model.connection.state)) {
+      props.onBack()
+      return
+    }
+    setLeaving(true)
+  }
+
+  const leave = (disconnect: boolean): void => {
+    setLeaving(false)
+    // Statistik dikirim SEBELUM navigasi: unmount berikutnya membongkar rig, dan ledger yang
+    // ikut terbongkar tidak punya siapa pun lagi untuk mengirimkannya.
+    void model.actions.flushProgress().then(() => {
+      if (disconnect) model.actions.disconnect()
+      props.onBack?.()
+    })
+  }
+
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
   const [ultimateSide, setUltimateSide] = useState<SideId>('b')
 
   const monitorRef = useRef<HTMLDivElement>(null)
@@ -152,7 +191,8 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
         onOpenSettings={openSettings}
         notifications={model.notifications}
         onReadNotifications={model.actions.readNotifications}
-        onBack={props.onBack}
+        onBack={props.onBack === undefined ? undefined : requestBack}
+        liveFor={liveDuration(model.connection, nowMs)}
       />
 
       {/*
@@ -370,13 +410,15 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
               matches={model.matchHistory}
               killers={model.topKillers}
               sideNames={{ a: model.config.sides.a.name, b: model.config.sides.b.name }}
-              nowMs={Date.now()}
+              nowMs={nowMs}
               onLoadTop={model.actions.loadTopGifters}
               onLoadStats={model.actions.loadMatchStats}
             />
           </div>
         </aside>
       </div>
+
+      {leaving ? <LeaveDialog onCancel={() => setLeaving(false)} onLeave={leave} /> : null}
     </div>
   )
 }

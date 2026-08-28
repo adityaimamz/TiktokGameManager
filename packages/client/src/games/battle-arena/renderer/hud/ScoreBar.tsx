@@ -158,7 +158,7 @@ export function ScoreBar({
             )
           })}
         </div>
-        <span style={caption}>{`RONDE ${model.roundNumber} · KE ${model.killsToWin} KILL`}</span>
+        <span style={caption}>{`ROUND ${model.roundNumber} · FIRST TO ${model.killsToWin} KILLS`}</span>
       </div>
     </div>
   )

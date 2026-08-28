@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { MatchRecord } from '@lga/shared'
 import { ServerStore } from './server-store.js'
 
@@ -214,5 +214,67 @@ describe('ServerStore', () => {
       },
     })
     expect(await dead.health()).toEqual([])
+  })
+})
+
+const delta = () => ({
+  platform: 'tiktok' as const,
+  username: 'budi',
+  avatarUrl: null,
+  kills: 1,
+  deaths: 0,
+  giftCoins: 500,
+})
+
+describe('ServerStore.recordProgress', () => {
+  it('mem-POST daftar delta ke /api/players/progress', async () => {
+    const rig = createRig(() => jsonResponse({ written: 1 }, 201))
+
+    const ok = await rig.store.recordProgress([delta()])
+
+    expect(ok).toBe(true)
+    expect(rig.calls[0]).toMatchObject({
+      url: '/api/players/progress',
+      method: 'POST',
+      body: { players: [delta()] },
+    })
+  })
+
+  it('melaporkan gagal saat server menolak, tanpa melempar', async () => {
+    const rig = createRig(() => jsonResponse({}, 500))
+
+    await expect(rig.store.recordProgress([delta()])).resolves.toBe(false)
+    expect(rig.errors).toEqual(['could not send live statistics'])
+  })
+
+  it('daftar kosong tidak menyentuh jaringan', async () => {
+    const rig = createRig(() => jsonResponse({}))
+
+    expect(await rig.store.recordProgress([])).toBe(true)
+    expect(rig.calls).toEqual([])
+  })
+})
+
+describe('ServerStore.beaconProgress', () => {
+  it('membawa kunci di query karena sendBeacon tidak bisa memasang header', () => {
+    const urls: string[] = []
+    vi.stubGlobal('navigator', {
+      sendBeacon: (url: string) => {
+        urls.push(url)
+        return true
+      },
+    })
+
+    new ServerStore({ appKey: 'rahasia' }).beaconProgress([delta()])
+
+    expect(urls).toEqual(['/api/players/progress?k=rahasia'])
+    vi.unstubAllGlobals()
+  })
+
+  it('diam saja di lingkungan tanpa sendBeacon', () => {
+    vi.stubGlobal('navigator', {})
+
+    expect(() => new ServerStore({}).beaconProgress([delta()])).not.toThrow()
+    vi.unstubAllGlobals()
   })
 })

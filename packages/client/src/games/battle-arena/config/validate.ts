@@ -282,7 +282,6 @@ export function validateSection<K extends keyof BattleArenaConfig>(
     case 'ui': {
       const ui = defaults.ui
       return {
-        interfaceLanguage: oneOf(pick(raw, 'interfaceLanguage'), ['en', 'id'] as const, ui.interfaceLanguage),
         showJoinedMessages: bool(pick(raw, 'showJoinedMessages'), ui.showJoinedMessages),
         showFloatingDamage: bool(pick(raw, 'showFloatingDamage'), ui.showFloatingDamage),
         showFighterNames: bool(pick(raw, 'showFighterNames'), ui.showFighterNames),

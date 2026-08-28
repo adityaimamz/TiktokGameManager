@@ -162,3 +162,36 @@ describe('normalizeMedia — musicVolume', () => {
     expect(normalizeMedia({ musicVolume: 'keras' }).musicVolume).toBe(1)
   })
 })
+
+describe('teks alert warisan', () => {
+  it('menukar teks Indonesia lama yang belum pernah disentuh creator', () => {
+    const state = normalizeMedia({
+      alerts: [
+        { kind: 'follow', enabled: true, threshold: 0, cueId: null, text: '{user} baru follow!' },
+      ],
+    })
+
+    expect(state.alerts.find((rule) => rule.kind === 'follow')?.text).toBe('{user} just followed!')
+  })
+
+  it('tidak menyentuh teks yang sudah ditulis creator sendiri', () => {
+    const state = normalizeMedia({
+      alerts: [
+        { kind: 'follow', enabled: true, threshold: 0, cueId: null, text: 'makasih {user}!' },
+      ],
+    })
+
+    expect(state.alerts.find((rule) => rule.kind === 'follow')?.text).toBe('makasih {user}!')
+  })
+
+  it('mempertahankan sisa setelan rule yang ditukar teksnya', () => {
+    const state = normalizeMedia({
+      alerts: [
+        { kind: 'gift', enabled: false, threshold: 9_000, cueId: 'c1', text: '{user} mengirim {value}!' },
+      ],
+    })
+    const gift = state.alerts.find((rule) => rule.kind === 'gift')
+
+    expect(gift).toMatchObject({ enabled: false, threshold: 9_000, cueId: 'c1', text: '{user} sent {value}!' })
+  })
+})

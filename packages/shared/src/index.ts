@@ -60,6 +60,8 @@ export type {
   MatchPlayerRecord,
   MatchRecord,
   MatchSummary,
+  PlayerIdentity,
+  PlayerProgress,
   PlayerStats,
   ServerEvent,
 } from './api.js'

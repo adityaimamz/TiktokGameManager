@@ -31,6 +31,7 @@ export {
   ALERT_LABEL,
   ALERT_LIKES_RANGE,
   DEFAULT_ALERTS,
+  LEGACY_ALERT_TEXTS,
   MEDIA_KINDS,
   cueFromEntry,
   stopMusicCue,

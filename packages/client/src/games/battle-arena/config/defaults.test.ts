@@ -45,7 +45,6 @@ describe('defaultConfig', () => {
 
   it('uses the documented ui defaults', () => {
     const ui = defaultConfig().ui
-    expect(ui.interfaceLanguage).toBe('en')
     expect(ui.showJoinedMessages).toBe(true)
     expect(ui.showFloatingDamage).toBe(true)
     expect(ui.showFighterNames).toBe(false)

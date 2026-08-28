@@ -1,7 +1,6 @@
 import type { BattleActionType, TargetKind } from '../actions.js'
 import type { SideId } from '../types.js'
 
-export type InterfaceLanguage = 'en' | 'id'
 
 /** Union satu anggota: mode menang baru bisa ditambah tanpa merusak config tersimpan. */
 export type WinMode = 'firstToNKills'
@@ -178,7 +177,6 @@ export interface TriggerRule {
 }
 
 export interface UiConfig {
-  interfaceLanguage: InterfaceLanguage
   showJoinedMessages: boolean
   showFloatingDamage: boolean
   showFighterNames: boolean

@@ -69,6 +69,10 @@ export class MatchRecorder {
  * hidup di memori dan hilang saat match berakhir, persis seperti yang §12 spec induk
  * tetapkan. `totalFighters` tetap menghitung semuanya, karena itu memang jumlah yang ada
  * di arena.
+ *
+ * Koin gift TIDAK ikut: `match_players` tidak punya kolomnya, dan total sepanjang masa
+ * ditulis `LiveLedger` lewat jalur progres. Mengirimnya dari sini juga akan menghitungnya
+ * dua kali (spec Plan 13 §3 — satu kolom, satu penulis).
  */
 function collectPlayers(state: Readonly<BattleArenaState>): MatchPlayerRecord[] {
   const players: MatchPlayerRecord[] = []
@@ -81,7 +85,6 @@ function collectPlayers(state: Readonly<BattleArenaState>): MatchPlayerRecord[] 
       side: fighter.side,
       kills: fighter.kills,
       deaths: fighter.deaths,
-      giftCoins: fighter.giftCoins,
     })
   }
   return players

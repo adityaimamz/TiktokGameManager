@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import type { MatchRecord } from '@lga/shared'
 import type { Repos } from '../repo/types.js'
-import { parseLimit } from './query.js'
+import { parseLimit, parsePlayerIdentity } from './query.js'
 
 const SIDES = new Set(['a', 'b'])
 
@@ -28,16 +28,11 @@ export function parseMatchRecord(body: unknown): MatchRecord | null {
   const players = raw['players']
   if (!Array.isArray(players)) return null
   for (const entry of players) {
-    if (typeof entry !== 'object' || entry === null) return null
+    if (parsePlayerIdentity(entry) === null) return null
     const player = entry as Record<string, unknown>
-    if (player['platform'] !== 'tiktok') return null
-    if (typeof player['username'] !== 'string' || player['username'] === '') return null
     if (typeof player['side'] !== 'string' || !SIDES.has(player['side'])) return null
     if (typeof player['kills'] !== 'number' || !Number.isFinite(player['kills'])) return null
     if (typeof player['deaths'] !== 'number' || !Number.isFinite(player['deaths'])) return null
-    if (typeof player['giftCoins'] !== 'number' || !Number.isFinite(player['giftCoins'])) return null
-    const avatar = player['avatarUrl']
-    if (avatar !== null && typeof avatar !== 'string') return null
   }
 
   return body as MatchRecord

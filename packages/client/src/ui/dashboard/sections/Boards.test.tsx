@@ -150,6 +150,6 @@ describe('Boards', () => {
     render(<Boards {...props} matches={[]} killers={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Statistik' }))
 
-    expect(screen.getByText(/terisi saat sebuah match selesai/i)).toBeDefined()
+    expect(screen.getByText(/terisi beberapa detik setelah kill atau gift pertama/i)).toBeDefined()
   })
 })

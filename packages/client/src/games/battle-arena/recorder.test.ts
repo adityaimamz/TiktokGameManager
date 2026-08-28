@@ -106,7 +106,6 @@ describe('MatchRecorder', () => {
       side: 'a',
       kills: 7,
       deaths: 2,
-      giftCoins: 0,
     })
   })
 
@@ -181,7 +180,14 @@ describe('MatchRecorder', () => {
 })
 
 describe('koin gift di record', () => {
-  it('membawa koin gift tiap viewer ke dalam record', () => {
+  /*
+   * Kebalikan dari aturan lama, dan disengaja (spec Plan 13 §3).
+   *
+   * Koin sepanjang masa ditulis `LiveLedger` lewat jalur progres; `match_players` tidak punya
+   * kolomnya. Mengirimnya dari sini berarti tiap gift dihitung dua kali — sekali oleh flush
+   * berkala, sekali lagi saat match berakhir.
+   */
+  it('tidak membawa koin gift sama sekali', () => {
     const rig = createRig()
     rig.emit(started())
     rig.join('andi', 'a')
@@ -189,15 +195,8 @@ describe('koin gift di record', () => {
 
     rig.emit(ended('a'))
 
-    expect(rig.submitted[0]?.players.find((entry) => entry.username === 'andi')?.giftCoins).toBe(500)
-  })
-
-  it('mengirim nol untuk viewer yang tidak pernah memberi hadiah', () => {
-    const rig = createRig()
-    rig.emit(started())
-    rig.join('budi', 'b')
-    rig.emit(ended('a'))
-
-    expect(rig.submitted[0]?.players.find((entry) => entry.username === 'budi')?.giftCoins).toBe(0)
+    const andi = rig.submitted[0]?.players.find((entry) => entry.username === 'andi')
+    expect(andi).toBeDefined()
+    expect(andi).not.toHaveProperty('giftCoins')
   })
 })

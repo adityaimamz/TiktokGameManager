@@ -1,7 +1,13 @@
 import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { idleStatus } from '@lga/shared'
-import type { AnalyticsEvent, MatchRecord, MatchSummary, PlayerStats } from '@lga/shared'
+import type {
+  AnalyticsEvent,
+  MatchRecord,
+  MatchSummary,
+  PlayerProgress,
+  PlayerStats,
+} from '@lga/shared'
 import { createApp } from '../app.js'
 import type { ChatConnection } from './chat.js'
 import type { Repos } from '../repo/types.js'
@@ -16,6 +22,7 @@ const silentConnection: ChatConnection = {
 
 function createFakeRepos() {
   const matchesSeen: MatchRecord[] = []
+  const progressSeen: PlayerProgress[][] = []
   const analyticsSeen: AnalyticsEvent[][] = []
   const limitsSeen: number[] = []
   const history: MatchSummary[] = [
@@ -65,8 +72,12 @@ function createFakeRepos() {
     },
     saveGifts: async (entries) => entries.length,
     allGifts: async () => [],
+    recordProgress: async (entries) => {
+      progressSeen.push([...entries])
+      return entries.length
+    },
   }
-  return { repos, matchesSeen, analyticsSeen, limitsSeen }
+  return { repos, matchesSeen, progressSeen, analyticsSeen, limitsSeen }
 }
 
 const appWith = (repos: Repos | null) => createApp({ connection: silentConnection, gifts: { giftCatalog: [] }, repos })
@@ -74,6 +85,7 @@ const appWith = (repos: Repos | null) => createApp({ connection: silentConnectio
 /** Repo palsu yang hanya merekam argumen `sort` yang diterimanya. */
 const spyingRepos = (seen: string[]): Repos => ({
   recordMatch: async () => ({ matchId: 1 }),
+  recordProgress: async () => 0,
   recentMatches: async () => [],
   recordAnalytics: async () => 0,
   saveGifts: async () => 0,
@@ -133,6 +145,71 @@ describe('database routes', () => {
 
     expect(response.status).toBe(400)
     expect(fake.matchesSeen).toEqual([])
+  })
+
+  it('menerima pemain tanpa giftCoins — koin bukan lagi urusan jalur match', async () => {
+    const fake = createFakeRepos()
+    const response = await request(appWith(fake.repos))
+      .post('/api/matches')
+      .send({
+        ...validMatch(),
+        players: [
+          { platform: 'tiktok', username: 'budi', avatarUrl: null, side: 'a', kills: 3, deaths: 1 },
+        ],
+      })
+
+    expect(response.status).toBe(201)
+  })
+
+  it('meneruskan delta progres ke repo dan menjawab berapa baris tersentuh', async () => {
+    const fake = createFakeRepos()
+    const budi = {
+      platform: 'tiktok' as const,
+      username: 'budi',
+      avatarUrl: null,
+      kills: 2,
+      deaths: 0,
+      giftCoins: 500,
+    }
+
+    const response = await request(appWith(fake.repos))
+      .post('/api/players/progress')
+      .send({ players: [budi] })
+
+    expect(response.status).toBe(201)
+    expect(response.body).toEqual({ written: 1 })
+    expect(fake.progressSeen).toEqual([[budi]])
+  })
+
+  it('menolak progres yang bentuknya salah dengan 400', async () => {
+    const fake = createFakeRepos()
+
+    const response = await request(appWith(fake.repos))
+      .post('/api/players/progress')
+      .send({ players: [{ platform: 'demo', username: 'bot', kills: 1, deaths: 0, giftCoins: 0 }] })
+
+    expect(response.status).toBe(400)
+    expect(fake.progressSeen).toEqual([])
+  })
+
+  it('menerima daftar progres kosong tanpa menyentuh database', async () => {
+    const fake = createFakeRepos()
+
+    const response = await request(appWith(fake.repos))
+      .post('/api/players/progress')
+      .send({ players: [] })
+
+    expect(response.status).toBe(201)
+    expect(response.body).toEqual({ written: 0 })
+    expect(fake.progressSeen).toEqual([])
+  })
+
+  it('menjawab 503 untuk progres saat tidak ada database', async () => {
+    const response = await request(appWith(null))
+      .post('/api/players/progress')
+      .send({ players: [] })
+
+    expect(response.status).toBe(503)
   })
 
   it('returns the leaderboard, honouring the limit', async () => {
@@ -244,6 +321,7 @@ describe('database routes', () => {
       recordMatch: async () => {
         throw Object.assign(new Error('relation "matches" does not exist'), { code: '42P01' })
       },
+      recordProgress: async () => 0,
       recentMatches: async () => [],
       topPlayers: async () => [],
       recordAnalytics: async () => 0,
@@ -261,6 +339,7 @@ describe('database routes', () => {
       recordMatch: async () => {
         throw new Error('connection terminated unexpectedly')
       },
+      recordProgress: async () => 0,
       recentMatches: async () => [],
       topPlayers: async () => [],
       recordAnalytics: async () => 0,

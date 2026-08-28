@@ -6,6 +6,7 @@ import { AudioEngine } from '../../platform/audio/audio.js'
 import { ChatEngine } from '../../platform/chat/engine.js'
 import { TikTokChatSource } from '../../platform/chat/tiktok-source.js'
 import { createPersistence } from '../../platform/persistence/index.js'
+import type { PersistenceStore } from '../../platform/persistence/index.js'
 import { AnalyticsLogger } from '../../platform/analytics/logger.js'
 import { browserAppKey } from '../../platform/app-key.js'
 import type { MediaCue } from '../../platform/media/cues.js'
@@ -29,6 +30,7 @@ import type { BattleArenaSignals } from '../../games/battle-arena/host.js'
 import type { EngineEvent } from '../../games/battle-arena/events.js'
 import { PracticeFighters } from '../../games/battle-arena/practice-fighters.js'
 import { BattleArenaSimulator } from '../../games/battle-arena/simulator.js'
+import { LiveLedger } from '../../games/battle-arena/ledger.js'
 import { MatchRecorder } from '../../games/battle-arena/recorder.js'
 import { toAnalyticsEvent } from '../../games/battle-arena/analytics-events.js'
 import type { FeedEntry } from '../../games/battle-arena/renderer/hud/feed.js'
@@ -52,6 +54,15 @@ export interface Rig {
   localCues: AudioChannels
   /** Kunci yang berlaku di tab ini, supaya top bar bisa mencetaknya di link overlay. */
   appKey: string | null
+  /**
+   * Statistik siaran yang belum tersimpan.
+   *
+   * Terbuka karena TIGA tempat memanggilnya: interval di `useDashboard`, dialog
+   * tinggalkan-ruang-kendali, dan handler `pagehide`.
+   */
+  ledger: LiveLedger
+  /** Terbuka supaya `useDashboard` bisa memanggil `beaconProgress` tanpa membangun store kedua. */
+  persistence: PersistenceStore
 }
 
 export interface RigHooks {
@@ -109,12 +120,17 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
     send: (events) => persistence.server.sendAnalytics(events),
     now: () => Date.now(),
   })
+  const ledger = new LiveLedger({
+    send: (entries) => persistence.server.recordProgress(entries),
+  })
   const recorder = new MatchRecorder({
     getState: () => host.engine.getState(),
     now: () => Date.now(),
     submit: (record) => {
-      // Hasil match tidak ditunggu: ia tidak boleh menahan transisi ke layar victory.
-      void persistence.server.recordMatch(record)
+      // Urutan mengikat (spec Plan 13 §6): koin yang memicu sebuah match tidak boleh tertulis
+      // SESUDAH baris match-nya. Tidak ditunggu di sisi pemanggil — ia tidak boleh menahan
+      // transisi ke layar victory.
+      void ledger.flush().then(() => persistence.server.recordMatch(record))
       void analytics.flush()
     },
   })
@@ -210,6 +226,7 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
       if (effect.soundCue !== null) playCue(effect.soundCue as SoundEvent)
     },
     onEvent: (event) => {
+      ledger.onEvent(event)
       recorder.onEvent(event)
       // Empat cue — tembakan, hitung mundur, ronde, match — tidak punya efek sama sekali,
       // jadi inilah satu-satunya penerbitnya. Tabelnya di `effects.ts` supaya bisa diuji.
@@ -230,6 +247,10 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
   // ChatEngine menolak dua sumber ber-id sama.
   const chat = new ChatEngine()
   chat.subscribe((message) => host.engine.handleMessage(message))
+  // Langganan KEDUA, bukan digabung ke yang di atas: ledger menghitung gift dari SETIAP
+  // pengirim TikTok, termasuk yang tidak pernah mengetik keyword dan karena itu tidak punya
+  // fighter untuk dititipi — `FighterRegistry.addGiftCoins` memulangkan mereka.
+  chat.subscribe((message) => ledger.onMessage(message))
 
   // Sumber TikTok justru langsung didaftarkan DAN membuka socket-nya begitu `chat.start()`
   // dipanggil — bukan menunggu tombol Connect. Itu disengaja: server menyiarkan status
@@ -239,5 +260,17 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
   const tiktok = new TikTokChatSource({ onStatus: hooks.onStatus, appKey })
   chat.addSource(tiktok)
 
-  return { signals, host, simulator, chat, tiktok, analytics, audio, localCues, appKey }
+  return {
+    signals,
+    host,
+    simulator,
+    chat,
+    tiktok,
+    analytics,
+    audio,
+    localCues,
+    appKey,
+    ledger,
+    persistence,
+  }
 }

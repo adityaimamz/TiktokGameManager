@@ -297,3 +297,34 @@ describe('useDashboard', () => {
     expect(screen.getByTestId('unread').textContent).toBe('0')
   })
 })
+
+/*
+ * Yang diuji di sini adalah JADWALNYA, bukan muatannya.
+ *
+ * Muatan flush tidak bisa dibangkitkan lewat permukaan publik hook ini: satu-satunya sumber
+ * chat yang bisa dinyalakan dari test adalah simulator, dan seluruh pesannya berplatform
+ * `demo` — yang justru disaring ledger. Isi ledger dibuktikan `ledger.test.ts`; kabel dari
+ * ujung ke ujung dibuktikan uji terima manual.
+ */
+describe('flush statistik siaran', () => {
+  it('menjadwalkan flush tiap 30 detik', () => {
+    const spy = vi.spyOn(globalThis, 'setInterval')
+
+    const view = render(<Probe />)
+    const scheduled = spy.mock.calls.some(([, ms]) => ms === 30_000)
+    view.unmount()
+    spy.mockRestore()
+
+    expect(scheduled).toBe(true)
+  })
+
+  it('membersihkan jadwalnya saat dashboard dibongkar', () => {
+    const spy = vi.spyOn(globalThis, 'clearInterval')
+
+    render(<Probe />).unmount()
+    const cleared = spy.mock.calls.length
+
+    spy.mockRestore()
+    expect(cleared).toBeGreaterThan(0)
+  })
+})

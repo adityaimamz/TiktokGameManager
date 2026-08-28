@@ -15,8 +15,8 @@ const record = (overrides: Partial<MatchRecord> = {}): MatchRecord => ({
   roundsWonB: 1,
   totalFighters: 2,
   players: [
-    { platform: 'tiktok', username: 'budi', avatarUrl: null, side: 'a', kills: 7, deaths: 2, giftCoins: 0 },
-    { platform: 'tiktok', username: 'siti', avatarUrl: null, side: 'b', kills: 2, deaths: 7, giftCoins: 0 },
+    { platform: 'tiktok', username: 'budi', avatarUrl: null, side: 'a', kills: 7, deaths: 2 },
+    { platform: 'tiktok', username: 'siti', avatarUrl: null, side: 'b', kills: 2, deaths: 7 },
   ],
   ...overrides,
 })
@@ -59,14 +59,23 @@ describeDb('recordMatch', () => {
     expect(await countOf('match_players')).toBe(2)
   })
 
-  it('accumulates the same viewer across two matches', async () => {
+  /*
+   * Jalur match menghitung PENAMPILAN, bukan kill (spec Plan 13 §3).
+   *
+   * Kill per match tetap tersimpan — di `match_players`, yang diperiksa test lain di berkas
+   * ini. Yang TIDAK lagi dilakukan di sini adalah menjumlahkannya ke total sepanjang masa:
+   * itu milik `POST /api/players/progress`, dan menaikkannya di dua tempat berarti tiap kill
+   * dihitung dua kali.
+   */
+  it('menghitung penampilan pemain yang sama lintas dua match', async () => {
     await recordMatch(db, record())
     await recordMatch(db, record())
 
-    const [top] = await topPlayers(db, 1)
-    expect(top?.username).toBe('budi')
-    expect(top?.kills).toBe(14)
-    expect(top?.gamesPlayed).toBe(2)
+    // Dicari namanya, bukan diambil baris pertama: dengan seluruh kill nol, urutan papan
+    // jatuh ke pemecah seri `id desc` dan "teratas" tidak berarti apa-apa lagi di sini.
+    const budi = (await topPlayers(db, 10)).find((row) => row.username === 'budi')
+    expect(budi?.gamesPlayed).toBe(2)
+    expect(budi?.kills).toBe(0)
     expect(await countOf('matches')).toBe(2)
   })
 
@@ -91,7 +100,7 @@ describeDb('recordMatch', () => {
       db,
       record({
         players: [
-          { platform: 'tiktok', username: 'agus', avatarUrl: null, side: 'a', kills: 1, deaths: 0, giftCoins: 0 },
+          { platform: 'tiktok', username: 'agus', avatarUrl: null, side: 'a', kills: 1, deaths: 0 },
         ],
       }),
       { evictLimit: 1 },
@@ -111,8 +120,8 @@ describeDb('recordMatch', () => {
     // langkah insert match — setelah kedua player di atas sudah berhasil di-upsert.
     const broken = record({
       players: [
-        { platform: 'tiktok', username: 'budi', avatarUrl: null, side: 'a', kills: 1, deaths: 0, giftCoins: 0 },
-        { platform: 'tiktok', username: 'siti', avatarUrl: null, side: 'b', kills: 1, deaths: 0, giftCoins: 0 },
+        { platform: 'tiktok', username: 'budi', avatarUrl: null, side: 'a', kills: 1, deaths: 0 },
+        { platform: 'tiktok', username: 'siti', avatarUrl: null, side: 'b', kills: 1, deaths: 0 },
       ],
       gameId: null as unknown as string,
     })

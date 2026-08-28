@@ -20,10 +20,27 @@ export interface ConnectionStatus {
   error: string | null
   /** Percobaan sambung ulang ke-berapa. 0 saat tidak sedang menyambung ulang. */
   attempt: number
+  /**
+   * Kapan koneksi ini PERTAMA berhasil, atau `null` bila belum pernah.
+   *
+   * Sambung ulang otomatis TIDAK me-reset-nya: putus 20 detik lalu tersambung lagi tetap satu
+   * siaran, dan itu yang creator maksud dengan "sudah live berapa lama". Server yang
+   * memegangnya, bukan browser, supaya reload tab dashboard tidak memulai jamnya dari nol —
+   * dan supaya dashboard di device kedua melihat angka yang sama.
+   */
+  connectedAtMs: number | null
 }
 
 export function idleStatus(): ConnectionStatus {
-  return { state: 'idle', username: null, roomId: null, viewerCount: 0, error: null, attempt: 0 }
+  return {
+    state: 'idle',
+    username: null,
+    roomId: null,
+    viewerCount: 0,
+    error: null,
+    attempt: 0,
+    connectedAtMs: null,
+  }
 }
 
 /**
@@ -59,15 +76,35 @@ export const APP_KEY_QUERY = 'k'
 export const OVERLAY_ROLE_QUERY = 'role'
 export const OVERLAY_ROLE = 'overlay'
 
-export interface MatchPlayerRecord {
+/** Siapa orang ini. Dipakai jalur match maupun jalur progres. */
+export interface PlayerIdentity {
   platform: 'tiktok'
   username: string
   avatarUrl: string | null
+}
+
+/**
+ * Delta sejak kiriman terakhir — BUKAN total.
+ *
+ * Ditumpuk `LiveLedger` di client dari event yang memang sudah berupa delta (kematian dan
+ * gift), lalu dijumlahkan server ke kolom `players`. Entri bernilai nol tidak pernah dikirim.
+ */
+export interface PlayerProgress extends PlayerIdentity {
+  kills: number
+  deaths: number
+  giftCoins: number
+}
+
+/**
+ * Satu baris `match_players`.
+ *
+ * Tanpa `giftCoins`: `match_players` tidak punya kolomnya, dan koin sepanjang masa ditulis
+ * jalur progres (spec Plan 13 §3 — satu kolom, satu penulis).
+ */
+export interface MatchPlayerRecord extends PlayerIdentity {
   side: 'a' | 'b'
   kills: number
   deaths: number
-  /** Koin gift sepanjang match ini. Ditumpuk server ke total sepanjang masa. */
-  giftCoins: number
 }
 
 /**

@@ -18,6 +18,7 @@ describe('idleStatus', () => {
       viewerCount: 0,
       error: null,
       attempt: 0,
+      connectedAtMs: null,
     })
   })
 

@@ -111,6 +111,7 @@ describe('TikTokConnection', () => {
       viewerCount: 0,
       error: null,
       attempt: 0,
+      connectedAtMs: null,
     })
   })
 
@@ -205,6 +206,55 @@ describe('TikTokConnection', () => {
     expect(rig.connection.status.state).toBe('connected')
     expect(rig.connection.status.attempt).toBe(0)
     expect(rig.connection.status.roomId).toBe('room-7')
+  })
+
+  /*
+   * Jam siaran, dan aturannya: diisi sekali, tidak pernah di-reset oleh sambung ulang.
+   *
+   * Angkanya tidak di-assert karena `createRig` memasang `now: () => nowMs++` — yang dijaga
+   * adalah aturannya, bukan nilainya.
+   */
+  it('menandai kapan koneksi pertama berhasil', async () => {
+    const rig = createRig()
+    const connecting = rig.connection.connect('budi')
+    rig.latest().succeed()
+    await connecting
+
+    expect(typeof rig.connection.status.connectedAtMs).toBe('number')
+  })
+
+  it('belum menandai apa pun sebelum koneksi pertama berhasil', () => {
+    const rig = createRig()
+    void rig.connection.connect('budi')
+
+    expect(rig.connection.status.connectedAtMs).toBeNull()
+  })
+
+  it('tidak me-reset jam saat sambung ulang berhasil', async () => {
+    const rig = createRig()
+    const connecting = rig.connection.connect('budi')
+    rig.latest().succeed()
+    await connecting
+    const first = rig.connection.status.connectedAtMs
+
+    rig.latest().emit('disconnected', undefined)
+    rig.timers.fire()
+    rig.latest().succeed('room-7')
+    await settle()
+
+    expect(rig.connection.status.state).toBe('connected')
+    expect(rig.connection.status.connectedAtMs).toBe(first)
+  })
+
+  it('melupakan jamnya setelah disconnect', async () => {
+    const rig = createRig()
+    const connecting = rig.connection.connect('budi')
+    rig.latest().succeed()
+    await connecting
+
+    rig.connection.disconnect()
+
+    expect(rig.connection.status.connectedAtMs).toBeNull()
   })
 
   it('doubles the delay when a reconnect attempt also fails', async () => {

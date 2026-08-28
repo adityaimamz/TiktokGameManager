@@ -99,13 +99,13 @@ export function scoreBarModel(view: SnapshotView, config: BattleArenaConfig): Sc
  * masih mengecat kapsul gelap dan titik berkedipnya di atas siaran creator.
  */
 const MATCH_STATUS: Record<MatchState, string | null> = {
-  idle: 'SIAP DIMULAI',
-  waitingFighters: 'MENUNGGU PEMAIN',
-  countdown: 'BERSIAP',
+  idle: 'READY TO START',
+  waitingFighters: 'WAITING FOR PLAYERS',
+  countdown: 'GET READY',
   battle: null,
-  victory: 'RONDE DIMENANGKAN',
-  result: 'PERTANDINGAN SELESAI',
-  reset: 'MENGATUR ULANG',
+  victory: 'ROUND OVER',
+  result: 'MATCH OVER',
+  reset: 'RESETTING',
 }
 
 export function matchStatusLabel(view: SnapshotView): string | null {
@@ -428,4 +428,18 @@ export function legendRails(config: BattleArenaConfig): LegendRails {
   }
 
   return { left, right }
+}
+
+/**
+ * Pemisah ribuan gaya Inggris, tanpa `toLocaleString`.
+ *
+ * Kembarannya `formatCount` di `ui/dashboard/format.ts` memakai TITIK dan melayani dashboard;
+ * renderer tidak boleh mengimpornya — itu impor ke atas, dan depcruise menolaknya. Regex,
+ * bukan `toLocaleString('en-US')`, dengan alasan yang sama yang sudah dicatat di sana: Node
+ * yang dibangun dengan ICU kecil diam-diam mengubah jawabannya.
+ */
+export function formatCoins(value: number): string {
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }

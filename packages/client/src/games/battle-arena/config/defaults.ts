@@ -84,7 +84,6 @@ export function defaultConfig(): BattleArenaConfig {
   return {
     schemaVersion: 2,
     ui: {
-      interfaceLanguage: 'en',
       showJoinedMessages: true,
       showFloatingDamage: true,
       showFighterNames: false,

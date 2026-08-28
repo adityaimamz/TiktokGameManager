@@ -104,7 +104,7 @@ export function Callout({
       ))}
       {model.overflow > 0 && (
         <span style={{ color: 'rgba(255,255,255,.75)', fontSize: scaled(layout, 14) }}>
-          {`+${model.overflow} lagi`}
+          {`+${model.overflow} more`}
         </span>
       )}
     </div>

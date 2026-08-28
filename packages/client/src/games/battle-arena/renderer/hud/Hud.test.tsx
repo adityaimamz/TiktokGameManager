@@ -247,7 +247,7 @@ describe('kartu top gifter', () => {
   it('menampilkan kartu top gifter', () => {
     render(hud(snapshot({}, [fighterWith(0, 1250)])))
     expect(screen.getByTestId('top-gifter').textContent).toContain('andi')
-    expect(screen.getByTestId('top-gifter').textContent).toContain('1.250')
+    expect(screen.getByTestId('top-gifter').textContent).toContain('1,250 coins')
   })
 
   it('tidak menggambar kartu saat belum ada hadiah', () => {

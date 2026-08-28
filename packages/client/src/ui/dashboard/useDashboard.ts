@@ -52,6 +52,9 @@ import type { TestActionId } from './sections/test-actions.js'
 import { createRig } from './rig.js'
 import type { Rig } from './rig.js'
 
+/** Jarak antar-flush statistik siaran ke server. */
+const PROGRESS_FLUSH_MS = 30_000
+
 export interface DashboardActions {
   connect: (username: string) => void
   disconnect: () => void
@@ -76,6 +79,8 @@ export interface DashboardActions {
   setMusicVolume: (volume: number) => void
   /** Menandai seluruh notifikasi terbaca — dipanggil saat dropdown lonceng dibuka. */
   readNotifications: () => void
+  /** Mengirim statistik siaran yang belum tersimpan. Ditunggu sebelum meninggalkan ruang kendali. */
+  flushProgress: () => Promise<void>
 }
 
 export interface DashboardOptions {
@@ -274,6 +279,18 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     rig.host.start()
     rig.chat.start()
 
+    // 30 detik: cukup cepat supaya papan Top terasa "langsung" oleh creator yang baru saja
+    // melihat gift masuk, cukup jarang supaya siaran dua jam tetap 240 request. Flush tanpa
+    // delta tidak menyentuh jaringan sama sekali.
+    const progressTimer = setInterval(() => {
+      void rig.ledger.flush()
+    }, PROGRESS_FLUSH_MS)
+
+    // `pagehide`, bukan `beforeunload`: `fetch` yang dimulai saat unload dibatalkan browser,
+    // dan menutup tab adalah cara paling umum sebuah siaran berakhir.
+    const beacon = (): void => rig.persistence.server.beaconProgress(rig.ledger.take())
+    window.addEventListener('pagehide', beacon)
+
     const offs = [
       rig.signals.onFeed((entry) => {
         const now = Date.now()
@@ -304,6 +321,11 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
 
     return () => {
       offs.forEach((off) => off())
+      clearInterval(progressTimer)
+      window.removeEventListener('pagehide', beacon)
+      // Sisa terakhir ikut lewat beacon: unmount berarti rig dibongkar, dan `fetch` yang
+      // dimulai sekarang belum tentu sempat selesai.
+      beacon()
       rig.chat.stop()
       rig.host.dispose()
       rig.audio.dispose()
@@ -452,6 +474,9 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
           .catch(() =>
             setConnection({ ...idleStatus(), state: 'failed', error: 'server unreachable' }),
           )
+      },
+      flushProgress: async () => {
+        await rigRef.current?.ledger.flush()
       },
       disconnect: () => {
         void apiFetch(`${serverBaseUrl()}/api/chat/disconnect`, { method: 'POST' })

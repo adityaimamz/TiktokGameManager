@@ -1,4 +1,4 @@
-import { DEFAULT_ALERTS, MEDIA_KINDS } from '../../platform/signals/index.js'
+import { DEFAULT_ALERTS, LEGACY_ALERT_TEXTS, MEDIA_KINDS } from '../../platform/signals/index.js'
 import type { AlertRule, CatalogEntry, MediaKind } from '../../platform/signals/index.js'
 import type { LocalStore } from '../../platform/persistence/index.js'
 import {
@@ -105,7 +105,12 @@ export function normalizeMedia(raw: unknown): MediaState {
       const found = storedAlerts.find(
         (rule) => (rule as Partial<AlertRule>)?.kind === fallback.kind,
       )
-      return isAlertRule(found) ? { ...found, kind: fallback.kind } : { ...fallback }
+      if (!isAlertRule(found)) return { ...fallback }
+      // Teks yang masih persis default Indonesia lama dianggap belum pernah disentuh, dan
+      // ikut pindah ke bahasa Inggris bersama arena. Yang sudah ditulis creator sendiri tidak
+      // ditimpa — kalimat itu miliknya, dan bahasanya keputusannya.
+      const text = LEGACY_ALERT_TEXTS.includes(found.text) ? fallback.text : found.text
+      return { ...found, kind: fallback.kind, text }
     }),
     reader: normalizeReader(source.reader),
     musicVolume: clamp01(source.musicVolume),

@@ -73,4 +73,31 @@ describe('renderer boundaries', () => {
 
     expect(offenders).toEqual([])
   })
+
+  /*
+   * Arena berbahasa Inggris; dashboard berbahasa Indonesia (spec Plan 13 §9).
+   *
+   * Komentar dibuang lebih dulu — SELURUH komentar di repo ini Indonesia, jadi tanpa
+   * `stripComments` komentar yang menjelaskan larangan ini akan melaporkan dirinya sendiri.
+   * Aturan yang sama sudah dipegang larangan Math.random/Date.now di framework.
+   *
+   * Daftarnya pendek dan akan membusuk: kata yang tidak ada di dalamnya akan lolos. Itu
+   * diterima — yang dijaga di sini adalah penambahan yang TIDAK SENGAJA, satu-satunya cara
+   * bahasa campuran kembali masuk ke berkas yang seluruh komentarnya Indonesia. Tambahkan
+   * kata saat ada yang lolos; jangan mengubahnya jadi deteksi bahasa.
+   */
+  it('never speaks Indonesian where the audience can read it', () => {
+    const words = [
+      'menunggu', 'ronde', 'pertandingan', 'koin', 'siap', 'bersiap', 'mengatur',
+      'tercapai', 'membagikan', 'mengirim', 'kirim', 'ketik', 'lagi', 'dimenangkan',
+      'pemenang', 'belum', 'sudah', 'tidak', 'dengan', 'untuk', 'yang', 'dari',
+    ]
+    const pattern = new RegExp(`\\b(${words.join('|')})\\b`, 'i')
+
+    const offenders = files.filter((file) =>
+      pattern.test(stripComments(readFileSync(file, 'utf8'))),
+    )
+
+    expect(offenders).toEqual([])
+  })
 })

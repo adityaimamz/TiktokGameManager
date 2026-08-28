@@ -129,4 +129,14 @@ describe('TopBar', () => {
     // dipakai sebelum siaran mulai, bukan menebak dari label yang hilang.
     expect(screen.getByTestId('overlay-count').textContent).toContain('0')
   })
+
+  it('menampilkan durasi siaran di dalam pil', () => {
+    render(<TopBar broadcast="live" overlayUrl="" {...rest} liveFor="1:03:20" />)
+    expect(screen.getByTestId('live-for').textContent).toContain('1:03:20')
+  })
+
+  it('tidak menggambar durasi saat belum tersambung', () => {
+    render(<TopBar broadcast="idle" overlayUrl="" {...rest} liveFor={null} />)
+    expect(screen.queryByTestId('live-for')).toBeNull()
+  })
 })
