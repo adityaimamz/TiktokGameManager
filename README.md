@@ -1,4 +1,4 @@
-# Live Game Animator
+# Live Game Manager
 
 Platform interaksi live-stream di mana penonton bermain lewat komentar, likes, dan gifts TikTok Live. Tidak ada aplikasi maupun akun untuk penonton — **chat adalah kontrolnya**.
 
@@ -8,14 +8,17 @@ Platform interaksi live-stream di mana penonton bermain lewat komentar, likes, d
 
 ## 🎮 Cara kerjanya
 
-Dua tab browser, satu proses:
+Tiga halaman, satu proses:
 
-| Tab | URL | Perannya |
+| Halaman | URL | Perannya |
 | --- | --- | --- |
-| **Dashboard** | `http://localhost:5173/` | Memiliki simulasi — tick loop hidup di sini |
-| **OBS Overlay** | `http://localhost:5173/overlay` | Tidak menjalankan apa pun; menggambar apa yang disiarkan dashboard, latar transparan |
+| **Katalog game** | `http://localhost:5173/` | Memilih game mana yang dibuka. Tidak memiliki engine, tidak menjalankan tick |
+| **Ruang kendali** | `http://localhost:5173/game/battle-arena` | Dashboard kreator — **memiliki simulasi**, tick loop hidup di sini |
+| **OBS Overlay** | `http://localhost:5173/overlay` | Tidak menjalankan apa pun; menggambar apa yang disiarkan ruang kendali, latar transparan |
 
-Dashboard menjalankan engine dan menyiarkan snapshot 20× per detik. Overlay hanya menggambar. Konsekuensinya disengaja: **menutup tab dashboard menghentikan match** (tab-nya memperingatkan lebih dulu).
+Perpindahan katalog ↔ ruang kendali memakai `history.pushState`, bukan muat ulang halaman — reload akan membunuh match yang sedang jalan tiap kali kreator melirik katalog.
+
+Ruang kendali menjalankan engine dan menyiarkan snapshot 20× per detik. Overlay hanya menggambar. Konsekuensinya disengaja: **menutup tab ruang kendali menghentikan match** (tab-nya memperingatkan lebih dulu, dan meninggalkannya lewat navigasi minta konfirmasi).
 
 ---
 
@@ -23,7 +26,8 @@ Dashboard menjalankan engine dan menyiarkan snapshot 20× per detik. Overlay han
 
 ### Platform
 
-- 🎛️ **Dashboard kreator** — konfigurasi game, koneksi TikTok, kontrol sesi, statistik, soundboard, comment reader
+- 🗂️ **Katalog game** — satu kartu per game terdaftar; Battle Arena yang pertama, slot berikutnya sudah disiapkan
+- 🎛️ **Ruang kendali kreator** — konfigurasi game, koneksi TikTok, kontrol sesi, durasi siaran, statistik, soundboard, comment reader
 - 📺 **Overlay OBS** — browser source berlatar transparan, bisa jalan di PC yang sama atau device lain
 - 💬 **Chat engine** — normalisasi event lintas sumber di balik satu interface `ChatSource` (TikTok Live + simulator)
 - 🔊 **Audio** — sintesis Web Audio untuk efek gameplay, **plus** 12 berkas `.ogg` untuk cue ultimate (launch + impact per varian)
@@ -141,7 +145,7 @@ npm run dev:client     # client saja — tanpa TikTok connector maupun database
 npm run dev:server     # server saja
 ```
 
-Buka `http://localhost:5173/`, klik **Start Simulator**, lalu buka `http://localhost:5173/overlay` di tab kedua.
+Buka `http://localhost:5173/`, pilih **Battle Arena** di katalog, klik **Start Simulator**, lalu buka `http://localhost:5173/overlay` di tab kedua.
 
 ### Overlay di device lain
 
@@ -202,7 +206,7 @@ npm run db:migrate:deploy  # jalankan di host deploy (tanpa berkas .env)
 
 ### Sebagai kreator
 
-1. Buka dashboard, konfigurasi game (HP, damage, warna sisi, pemetaan gift)
+1. Buka katalog, masuk ke ruang kendali Battle Arena, konfigurasi game (HP, damage, warna sisi, pemetaan gift)
 2. Sambungkan ke TikTok Live, atau jalankan Simulator untuk uji coba
 3. Tambahkan overlay sebagai **Browser Source** di OBS
 4. Mulai match
@@ -263,10 +267,11 @@ packages/client/src/
 │       ├── canvas.ts             # penggambar utama
 │       └── fx/                   # jalur FX ultimate + WebGL post-process
 └── ui/
-    ├── App.tsx                   # pemilihan rute + ErrorBoundary
+    ├── App.tsx                   # pemilihan rute (pushState) + ErrorBoundary
     ├── StagePage.tsx             # halaman overlay
     ├── ErrorBoundary.tsx         # penahan exception render
-    └── dashboard/Dashboard.tsx   # pemilik engine
+    ├── dashboard/Lobby.tsx       # katalog game — tidak memiliki engine
+    └── dashboard/Dashboard.tsx   # ruang kendali, pemilik engine
 
 packages/server/src/
 ├── index.ts          # bootstrap: penjaga boot, heartbeat, handler sinyal
@@ -597,4 +602,4 @@ Private project.
 
 ---
 
-**Battle Arena adalah game pertama sekaligus blueprint arsitektur untuk yang berikutnya.**
+**Battle Arena adalah game pertama sekaligus blueprint arsitektur untuk yang berikutnya — katalognya sudah menunggu penghuni kedua.**
