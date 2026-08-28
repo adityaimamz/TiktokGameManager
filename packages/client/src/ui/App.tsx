@@ -1,7 +1,8 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
+import { gameById } from '../platform/registry/index.js'
 import { ErrorBoundary, OverlayRecovery } from './ErrorBoundary.js'
-import { isStageMode } from './routing.js'
+import { gameFromPath, gamePath, isStageMode } from './routing.js'
 import { StagePage } from './StagePage.js'
 
 /**
@@ -13,6 +14,8 @@ import { StagePage } from './StagePage.js'
  * dan itulah yang boundaries.test.ts jaga.
  */
 const Dashboard = lazy(() => import('./dashboard/Dashboard.js'))
+/** Katalog memakai chrome yang sama, jadi ia tunduk pada aturan yang sama. */
+const Lobby = lazy(() => import('./dashboard/Lobby.js'))
 
 /**
  * Panel yang menggantikan dashboard yang jatuh.
@@ -61,20 +64,63 @@ const DASHBOARD_FALLBACK = (
   </div>
 )
 
-export function App({ search }: { search: string }): ReactElement {
+/**
+ * Seluruh router aplikasi ini, dalam satu hook.
+ *
+ * Tiga halaman dan satu tingkat kedalaman tidak cukup untuk membayar sebuah pustaka router:
+ * yang dibutuhkan hanya path yang bisa berubah tanpa memuat ulang. Memuat ulang BUKAN
+ * pilihan yang netral di sini — tab ruang kendali adalah pemilik match (§6.1), jadi
+ * navigasi yang menyegarkan halaman akan membunuh pertandingan yang sedang berjalan tiap
+ * kali creator melirik katalog.
+ */
+function usePath(initial: string): [string, (to: string) => void] {
+  const [path, setPath] = useState(initial)
+
+  useEffect(() => {
+    const onPop = (): void => setPath(window.location.pathname)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  return [
+    path,
+    (to: string) => {
+      // `pushState`, bukan `replaceState`: tombol Back peramban adalah jalan pulang yang
+      // pertama kali dicoba creator, dan di sini ia harus bekerja.
+      window.history.pushState(null, '', to)
+      setPath(to)
+    },
+  ]
+}
+
+export function App({ pathname = '', search }: { pathname?: string; search: string }): ReactElement {
+  const [path, go] = usePath(pathname)
+
   // Boundary di SINI, bukan di dalam Dashboard: `useDashboard()` sendiri bisa melempar, dan
   // boundary yang duduk di bawahnya tidak akan pernah melihatnya.
-  if (isStageMode(search)) {
+  if (isStageMode(path, search)) {
     return (
       <ErrorBoundary fallback={<OverlayRecovery />}>
         <StagePage />
       </ErrorBoundary>
     )
   }
+
+  /*
+   * Id yang tidak dikenal jatuh ke katalog, tidak ke layar kosong: alamat ruang kendali
+   * ikut tersalin dan ikut di-bookmark, dan game yang suatu hari dicabut dari registry
+   * tidak boleh meninggalkan halaman putih di belakangnya.
+   */
+  const game = gameById(gameFromPath(path) ?? '')
+
   return (
     <ErrorBoundary fallback={DASHBOARD_FALLBACK}>
       <Suspense fallback={null}>
-        <Dashboard />
+        {game === null ? (
+          <Lobby onOpen={(id) => go(gamePath(id))} />
+        ) : (
+          <Dashboard onBack={() => go('/')} />
+        )}
       </Suspense>
     </ErrorBoundary>
   )

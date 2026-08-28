@@ -6,6 +6,7 @@ import type { BroadcastState } from './broadcast.js'
 import { Icon } from './icons.js'
 import { Notifications } from './Notifications.js'
 import type { NotificationEntry } from './notification-list.js'
+import { Wordmark } from './Wordmark.js'
 
 export interface TopBarProps {
   broadcast: BroadcastState
@@ -17,6 +18,8 @@ export interface TopBarProps {
   onOpenSettings: () => void
   notifications: readonly NotificationEntry[]
   onReadNotifications: () => void
+  /** Kembali ke katalog game. Tanpa ini tombolnya tidak digambar sama sekali. */
+  onBack?: () => void
 }
 
 /** Pil siaran: warna DAN kata, karena warna saja tidak cukup untuk dibedakan. */
@@ -42,42 +45,24 @@ export function TopBar(props: TopBarProps): ReactElement {
 
   return (
     <header className="stack relative z-20 flex shrink-0 items-center gap-[18px] px-4 py-3">
-      {/* Lencana heksagon: dua garis gradien yang mengunci identitas produk di pojok kiri. */}
-      <div className="flex flex-none items-center gap-[11px]">
-        <div className="relative grid h-[38px] w-[38px] place-items-center">
-          <div
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(135deg,#2F80FF,#B02BFF 52%,#FF2D78)',
-              clipPath: 'polygon(50% 0,100% 26%,100% 74%,50% 100%,0 74%,0 26%)',
-              boxShadow: '0 0 22px rgba(120,80,255,.65)',
-            }}
-          />
-          <div
-            className="absolute inset-[1.5px] bg-[#0a0b16]"
-            style={{ clipPath: 'polygon(50% 0,100% 26%,100% 74%,50% 100%,0 74%,0 26%)' }}
-          />
-          <span
-            className="relative font-data text-[17px] font-bold"
-            style={{
-              background: 'linear-gradient(135deg,#6FD0FF,#FF6FA8)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
-            i
-          </span>
-        </div>
-        <div className="flex flex-col gap-px">
-          <span className="font-data text-base font-bold uppercase leading-none tracking-[0.14em]">
-            Interactify
-          </span>
-          <span className="font-ui text-[9.5px] font-semibold uppercase tracking-[0.34em] text-muted">
-            / {game?.label ?? ''}
-          </span>
-        </div>
-      </div>
+      {/*
+        * Jalan pulang ke katalog. Hanya digambar kalau ada tempat untuk pulang — dashboard
+        * yang berdiri sendiri (uji, embed) tidak boleh menumbuhkan tombol yang tidak bisa
+        * ditekan.
+        */}
+      {props.onBack === undefined ? null : (
+        <button
+          className="btn-icon flex-none font-data text-[19px] leading-none"
+          type="button"
+          aria-label="Semua game"
+          title="Kembali ke katalog game"
+          onClick={props.onBack}
+        >
+          ‹
+        </button>
+      )}
+
+      <Wordmark surface={game?.label ?? ''} />
 
       <span
         className="flex flex-none items-center gap-2 rounded-full border py-[6px] pl-2.5 pr-3 font-data text-[11px] font-semibold uppercase tracking-[0.16em]"

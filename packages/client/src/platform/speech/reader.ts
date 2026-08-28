@@ -50,14 +50,17 @@ export function createCommentReader(opts: { getSettings: () => ReaderSettings })
       const cleaned = stripUrls(message.text)
       if (cleaned === '') return null
 
-      // Diuji pada kalimat UTUH: nama penonton ikut terbaca lantang, jadi saringan yang
-      // melewatkannya hanya menutup separuh lubang. Sebelum dipotong, supaya potongan tidak
-      // pernah menyembunyikan kata terlarang di ekornya.
-      if (isBlocked(`${message.username} ${cleaned}`, settings.blockedWords)) return null
+      // Sebelum dipotong, supaya potongan tidak pernah menyembunyikan kata terlarang di
+      // ekornya. Username TIDAK ikut diperiksa: ia tidak lagi dibacakan (lihat di bawah),
+      // jadi kata terlarang di dalamnya tidak pernah sampai ke pendengar.
+      if (isBlocked(cleaned, settings.blockedWords)) return null
 
+      // Hanya isi komentarnya, bukan "{username} bilang ...": nama penonton menambah durasi
+      // bacaan tanpa menambah informasi, dan creator yang membaca komentarnya sendiri di
+      // layar chat tidak butuh nama diulang lewat suara.
       return {
         id: `speech-${sequence++}`,
-        text: `${message.username} bilang ${cleaned.slice(0, settings.maxChars)}`,
+        text: cleaned.slice(0, settings.maxChars),
       }
     },
   }

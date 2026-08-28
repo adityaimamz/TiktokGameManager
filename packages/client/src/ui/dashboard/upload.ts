@@ -1,3 +1,4 @@
+import { apiFetch } from '../../platform/app-key.js'
 import { serverBaseUrl } from '../../platform/server-url.js'
 /**
  * Berkas dikirim sebagai badan request, bukan multipart.
@@ -23,7 +24,7 @@ export function setUploadErrorHandler(handler: ((message: string) => void) | nul
 
 export async function uploadFile(
   file: File,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = apiFetch,
 ): Promise<string | null> {
   try {
     const response = await fetchImpl(`${serverBaseUrl()}/api/uploads`, {

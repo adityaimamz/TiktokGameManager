@@ -4,6 +4,7 @@ import type { BattleArenaConfig } from './config/index.js'
 import type { RosterFiller } from './engine.js'
 import type { FighterRegistry } from './fighters.js'
 import { SIDES } from './types.js'
+import { viewerName } from './usernames.js'
 import type { SideId } from './types.js'
 
 /**
@@ -18,7 +19,7 @@ export const PRACTICE_MIN_PER_SIDE = 6
 export const PRACTICE_PLATFORM: ChatPlatform = 'practice'
 
 export class PracticeFighters implements RosterFiller {
-  private nextIndex = 1
+  private nextIndex = 0
 
   /**
    * Pesan join untuk menambal kekurangan bot di kedua sisi.
@@ -33,7 +34,7 @@ export class PracticeFighters implements RosterFiller {
     for (const side of SIDES) {
       const missing = target - fighters.countOnSide(side, { aliveOnly: true })
       for (let i = 0; i < missing; i++) {
-        const username = `Bot ${this.nextIndex++}`
+        const username = viewerName(this.nextIndex++)
         messages.push(
           createChatMessage({
             id: `practice-${username}`,

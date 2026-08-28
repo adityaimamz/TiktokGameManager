@@ -66,6 +66,22 @@ describe('createApp', () => {
     const missing = await request(app).get('/api/nope')
     expect(missing.status).toBe(404)
     expect(missing.body).toEqual({ error: 'not found' })
+
+    // Halaman overlay OBS. Tidak ada berkas di path ini; tanpa route-nya, siaran
+    // creator menampilkan 404 Express, bukan arena.
+    const overlay = await request(app).get('/overlay')
+    expect(overlay.status).toBe(200)
+    expect(overlay.text).toContain('arena')
+
+    // Ruang kendali per game: alamat yang di-bookmark creator, dan juga tanpa berkas.
+    const control = await request(app).get('/game/battle-arena')
+    expect(control.status).toBe(200)
+    expect(control.text).toContain('arena')
+
+    // Dan hanya path itu: salah ketik tetap 404, bukan diam-diam memuat dashboard.
+    expect((await request(app).get('/overlays')).status).toBe(404)
+    expect((await request(app).get('/game')).status).toBe(404)
+    expect((await request(app).get('/game/battle-arena/config')).status).toBe(404)
   })
 
   it('membiarkan /api terbuka saat APP_KEY tidak diset', async () => {

@@ -19,12 +19,12 @@ const event = (kind: ChatEventKind): ChatMessage =>
   createChatMessage({ id: 'm2', kind, platform: 'tiktok', username: 'sari', text: 'halo' })
 
 describe('createCommentReader', () => {
-  it('merakit "{user} bilang {text}" dan menomori tiap ucapan', () => {
+  it('membacakan isi komentarnya saja, tanpa nama penonton, dan menomori tiap ucapan', () => {
     const reader = createCommentReader({ getSettings: () => settings() })
 
     expect(reader.onMessage(comment('halo semua'))).toEqual({
       id: 'speech-0',
-      text: 'budi bilang halo semua',
+      text: 'halo semua',
     })
     expect(reader.onMessage(comment('lagi'))?.id).toBe('speech-1')
   })
@@ -46,9 +46,7 @@ describe('createCommentReader', () => {
   it('membuang tautan, dan menolak komentar yang isinya hanya tautan', () => {
     const reader = createCommentReader({ getSettings: () => settings() })
 
-    expect(reader.onMessage(comment('mampir https://spam.example/x ya'))?.text).toBe(
-      'budi bilang mampir ya',
-    )
+    expect(reader.onMessage(comment('mampir https://spam.example/x ya'))?.text).toBe('mampir ya')
     expect(reader.onMessage(comment('www.spam.example'))).toBeNull()
   })
 
@@ -59,11 +57,12 @@ describe('createCommentReader', () => {
     expect(reader.onMessage(comment('sate kambing'))).not.toBeNull()
   })
 
-  it('menolak komentar dari penonton yang NAMANYA memuat kata terlarang', () => {
+  it('tidak menyensor komentar hanya karena NAMA penontonnya memuat kata terlarang', () => {
     const reader = createCommentReader({ getSettings: () => settings({ blockedWords: ['babi'] }) })
 
-    // Nama ikut terbaca lantang, jadi saringan yang hanya melihat komentar menutup separuh lubang.
-    expect(reader.onMessage(comment('halo semua', 'raja_babi'))).toBeNull()
+    // Nama tidak lagi dibacakan, jadi kata terlarang di dalamnya tidak pernah sampai ke
+    // pendengar — menyaringnya di sini hanya akan membungkam penonton yang tidak salah apa-apa.
+    expect(reader.onMessage(comment('halo semua', 'raja_babi'))?.text).toBe('halo semua')
   })
 
   it('memotong komentar panjang SETELAH saringan, bukan sebelumnya', () => {
@@ -73,6 +72,6 @@ describe('createCommentReader', () => {
 
     // Kalau potongan berjalan lebih dulu, "babi" di ekor lolos dan komentarnya terbaca.
     expect(reader.onMessage(comment('halo semua babi'))).toBeNull()
-    expect(reader.onMessage(comment('satu dua tiga empat'))?.text).toBe('budi bilang satu dua t')
+    expect(reader.onMessage(comment('satu dua tiga empat'))?.text).toBe('satu dua t')
   })
 })

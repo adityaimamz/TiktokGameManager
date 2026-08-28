@@ -6,7 +6,7 @@ const container = document.getElementById('root')
 if (container !== null) {
   createRoot(container).render(
     <StrictMode>
-      <App search={window.location.search} />
+      <App pathname={window.location.pathname} search={window.location.search} />
     </StrictMode>,
   )
 }

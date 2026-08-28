@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import express, { Router } from 'express'
 import type { ErrorRequestHandler, Express, RequestHandler } from 'express'
 import { keyMatches, requestKey } from './app-key.js'
@@ -149,14 +150,27 @@ export function createApp(deps: AppDeps): Express {
   }
 
   // Dipasang SESUDAH seluruh /api, termasuk 404-nya: request /api yang tidak dikenal harus
-  // dijawab JSON, bukan dijatuhkan ke halaman. Tidak ada fallback SPA — routing halaman
-  // memakai query (`?stage=1`), jadi index.html di root sudah cukup.
+  // dijawab JSON, bukan dijatuhkan ke halaman.
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'not found' })
   })
 
   if (deps.clientDist !== undefined) {
-    app.use(express.static(deps.clientDist))
+    const dist = deps.clientDist
+    app.use(express.static(dist))
+    // `/overlay` adalah SATU-SATUNYA path halaman selain root, dan tidak ada berkas di
+    // sana — `express.static` menjawabnya 404 kalau baris ini tidak ada. Bukan fallback
+    // SPA menyeluruh: URL salah ketik tetap 404, bukan diam-diam memuat dashboard.
+    // Dev server Vite melayaninya sendiri lewat fallback SPA bawaannya.
+    app.get('/overlay', (_req, res) => {
+      res.sendFile(resolve(dist, 'index.html'))
+    })
+    // Ruang kendali tiap game duduk di bawah `/game/`. Satu segmen, bukan `/game/*`:
+    // yang di-bookmark creator selalu `/game/<id>`, dan id yang tidak dikenal sudah
+    // dijawab katalog oleh klien — bukan alasan untuk melebarkan fallback ini.
+    app.get('/game/:id', (_req, res) => {
+      res.sendFile(resolve(dist, 'index.html'))
+    })
   }
 
   return app

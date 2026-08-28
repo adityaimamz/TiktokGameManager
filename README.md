@@ -13,7 +13,7 @@ Dua tab browser, satu proses:
 | Tab | URL | Perannya |
 | --- | --- | --- |
 | **Dashboard** | `http://localhost:5173/` | Memiliki simulasi — tick loop hidup di sini |
-| **OBS Overlay** | `http://localhost:5173/?stage=1` | Tidak menjalankan apa pun; menggambar apa yang disiarkan dashboard, latar transparan |
+| **OBS Overlay** | `http://localhost:5173/overlay` | Tidak menjalankan apa pun; menggambar apa yang disiarkan dashboard, latar transparan |
 
 Dashboard menjalankan engine dan menyiarkan snapshot 20× per detik. Overlay hanya menggambar. Konsekuensinya disengaja: **menutup tab dashboard menghentikan match** (tab-nya memperingatkan lebih dulu).
 
@@ -141,7 +141,7 @@ npm run dev:client     # client saja — tanpa TikTok connector maupun database
 npm run dev:server     # server saja
 ```
 
-Buka `http://localhost:5173/`, klik **Start Simulator**, lalu buka `http://localhost:5173/?stage=1` di tab kedua.
+Buka `http://localhost:5173/`, klik **Start Simulator**, lalu buka `http://localhost:5173/overlay` di tab kedua.
 
 ### Overlay di device lain
 
@@ -149,9 +149,9 @@ Overlay tidak harus jalan di PC yang sama. Top bar dashboard mencetak alamat yan
 
 | Di mana OBS jalan | URL | Jalurnya |
 | --- | --- | --- |
-| PC yang sama | `http://localhost:3001/?stage=1` | `BroadcastChannel`, **nol byte** lewat jaringan |
-| Device lain, satu LAN | `http://<ip-lan>:3001/?stage=1` | WebSocket lewat server |
-| Lewat tunnel / deploy | `https://<domain>/?stage=1&k=<kunci>` | WebSocket lewat server |
+| PC yang sama | `http://localhost:3001/overlay` | `BroadcastChannel`, **nol byte** lewat jaringan |
+| Device lain, satu LAN | `http://<ip-lan>:3001/overlay` | WebSocket lewat server |
+| Lewat tunnel / deploy | `https://<domain>/overlay?k=<kunci>` | WebSocket lewat server |
 
 > **Jangan tambahkan `&k=` untuk overlay di PC yang sama.** Adanya `k` membuat halaman menganggap dirinya jauh dan memaksa transport WebSocket. Tanpa `k` di `localhost` ia memakai `BroadcastChannel` — dan halaman statisnya memang tidak butuh kunci.
 
@@ -401,8 +401,8 @@ WebSocket tidak butuh konfigurasi tambahan — ingress HTTP sudah meneruskannya.
 
 | Overlay di mana | URL |
 | --- | --- |
-| PC yang sama | `http://localhost:3001/?stage=1` — **tanpa `&k=`** |
-| Device lain | `https://lga.domainmu.com/?stage=1&k=<kunci>` |
+| PC yang sama | `http://localhost:3001/overlay` — **tanpa `?k=`** |
+| Device lain | `https://lga.domainmu.com/overlay?k=<kunci>` |
 
 Dashboard: buka `https://lga.domainmu.com/?k=<kunci>` sekali. Kuncinya disimpan browser dan dihapus dari URL, jadi tidak ikut terbaca saat share screen.
 
@@ -505,7 +505,7 @@ Satu-satunya jalan keluar adalah `ALLOW_OPEN_ACCESS=1`, dan ia untuk dev lokal. 
 | Pemakai | Cara membawa kunci |
 | --- | --- |
 | Dashboard | Buka `https://<domain>/?k=<kunci>` sekali. Kunci disimpan browser dan **dihapus dari URL** |
-| Overlay OBS | `https://<domain>/?stage=1&k=<kunci>` — permanen, OBS tidak punya tempat mengetik |
+| Overlay OBS | `https://<domain>/overlay?k=<kunci>` — permanen, OBS tidak punya tempat mengetik |
 
 Halaman statis sengaja tetap terbuka — dashboard harus bisa dimuat untuk meminta kunci. Yang dijaga adalah `/api` dan `/ws`. `GET /api/health` juga tetap terbuka, karena host deploy memanggilnya tanpa kunci.
 

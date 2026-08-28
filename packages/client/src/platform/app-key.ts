@@ -1,4 +1,4 @@
-import { APP_KEY_QUERY } from '@lga/shared'
+import { APP_KEY_HEADER, APP_KEY_QUERY } from '@lga/shared'
 
 /** Tempat kunci disimpan setelah dibersihkan dari URL. */
 const STORAGE_KEY = 'lga:app-key'
@@ -67,4 +67,19 @@ export function browserAppKey(): string | null {
     scrub: (search) =>
       history.replaceState(null, '', `${location.pathname}${search}${location.hash}`),
   })
+}
+
+/**
+ * `fetch` dengan kunci terpasang — satu-satunya cara memanggil `/api` dari peramban.
+ *
+ * `APP_KEY` yang terisi menjaga SELURUH `/api` kecuali `/health`, jadi pemanggil yang lupa
+ * headernya dijawab 401 — dan 401 itu sampai ke layar sebagai status koneksi yang rusak,
+ * bukan sebagai pesan yang bisa dimengerti. Dipasang di sini, bukan di tiap pemanggil.
+ */
+export const apiFetch: typeof fetch = (input, init) => {
+  const key = currentAppKey()
+  if (key === null) return fetch(input, init)
+  const headers = new Headers(init?.headers)
+  headers.set(APP_KEY_HEADER, key)
+  return fetch(input, { ...init, headers })
 }

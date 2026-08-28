@@ -4,6 +4,7 @@ import type { Clock } from '../../framework/clock.js'
 import type { Rng } from '../../framework/rng.js'
 import type { ChatSource } from '../../platform/chat/source.js'
 import type { BattleArenaConfig } from './config/index.js'
+import { viewerName } from './usernames.js'
 
 /**
  * Laju rata-rata viewer sintetis yang masuk selagi arena masih lapang.
@@ -31,8 +32,6 @@ export const REJOIN_DELAY_MAX_MS = 10_000
  */
 const JITTER_MIN = 0.25
 const JITTER_MAX = 1.75
-
-const USERNAME_ALPHABET = [...'abcdefghijklmnopqrstuvwxyz0123456789']
 
 /**
  * Perbendaharaan komentar penonton sintetis.
@@ -267,12 +266,10 @@ export class BattleArenaSimulator implements ChatSource {
     return this.joined.length === 0 ? this.makeUsername() : this.opts.rng.pick(this.joined)
   }
 
-  /** Tiga sampai enam belas karakter alfanumerik, unik sepanjang sesi (Req 18 AC1). */
+  /** Handle alfanumerik yang terbaca seperti penonton sungguhan, unik sepanjang sesi (Req 18 AC1). */
   private makeUsername(): string {
     for (let attempt = 0; attempt < 8; attempt++) {
-      const length = this.opts.rng.int(3, 17)
-      let name = ''
-      for (let i = 0; i < length; i++) name += this.opts.rng.pick(USERNAME_ALPHABET)
+      const name = viewerName(this.opts.rng.int(0, 5000))
       if (!this.usedNames.has(name)) {
         this.usedNames.add(name)
         return name

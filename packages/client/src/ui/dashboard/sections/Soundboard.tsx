@@ -123,7 +123,7 @@ export function Soundboard(props: SoundboardProps): ReactElement {
         )}
 
         <div className="flex items-center gap-2">
-          <label className="btn cursor-pointer" htmlFor={inputId}>
+          <label className="btn cursor-pointer whitespace-nowrap" htmlFor={inputId}>
             {busy ? 'Mengunggah…' : 'Tambah'}
           </label>
           <input
@@ -135,24 +135,33 @@ export function Soundboard(props: SoundboardProps): ReactElement {
             onChange={(event) => void add(event.target.files?.[0])}
             type="file"
           />
-          {kind === 'music' ? (
-            <>
-              <button className="btn" onClick={props.onStopMusic} type="button">
-                Stop musik
-              </button>
-              <input
-                aria-label="Volume musik"
-                className="w-full accent-tally"
-                max={1}
-                min={0}
-                onChange={(event) => props.onMusicVolume(Number(event.target.value))}
-                step={0.05}
-                type="range"
-                value={props.musicVolume}
-              />
-            </>
-          ) : null}
         </div>
+
+        {/*
+          * Baris sendiri, bukan berbagi baris dengan "Tambah": slider `w-full` di baris yang
+          * sama merebut ruang dari tombol dan memaksa "Stop musik" melipat jadi dua baris.
+          */}
+        {kind === 'music' ? (
+          <div className="flex items-center gap-2.5">
+            <button
+              className="btn shrink-0 whitespace-nowrap"
+              onClick={props.onStopMusic}
+              type="button"
+            >
+              Stop musik
+            </button>
+            <input
+              aria-label="Volume musik"
+              className="min-w-0 flex-1 accent-tally"
+              max={1}
+              min={0}
+              onChange={(event) => props.onMusicVolume(Number(event.target.value))}
+              step={0.05}
+              type="range"
+              value={props.musicVolume}
+            />
+          </div>
+        ) : null}
 
         {error === null ? null : (
           <p className="note text-tally" role="alert">

@@ -2,24 +2,68 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { StrictMode } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { App } from './App.js'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  // Navigasi menulis ke history jsdom yang dipakai bersama seluruh berkas ini.
+  window.history.replaceState(null, '', '/')
+})
+
+/** Dashboard dimuat malas, jadi chunk-nya ditransformasi Vite saat assertion berjalan. */
+const DASHBOARD = { timeout: 5000 }
 
 describe('App', () => {
-  it('renders the overlay stage when the stage query is set', () => {
-    render(<App search="?stage=1" />)
+  it('renders the overlay stage on /overlay', () => {
+    render(<App pathname="/overlay" search="" />)
     expect(screen.getByTestId('stage-page')).toBeTruthy()
     expect(screen.queryByTestId('column-control')).toBeNull()
   })
 
-  it('renders the dashboard otherwise', async () => {
-    render(<App search="" />)
-    // Dashboard dimuat malas, jadi chunk-nya ditransformasi Vite saat assertion ini berjalan.
-    // Default 1000 ms Testing Library terlampaui saat seluruh suite berjalan bersamaan —
-    // yang diuji di sini adalah dashboard AKHIRNYA muncul, bukan seberapa cepat.
-    expect(await screen.findByTestId('column-control', {}, { timeout: 5000 })).toBeTruthy()
+  it('renders the overlay stage for the legacy ?stage=1 address too', () => {
+    render(<App search="?stage=1" />)
+    expect(screen.getByTestId('stage-page')).toBeTruthy()
+  })
+
+  it('lands on the game catalogue at the root', async () => {
+    render(<App pathname="/" search="" />)
+
+    expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
+    expect(screen.queryByTestId('column-control')).toBeNull()
+  })
+
+  it('opens the control room of the game the path names', async () => {
+    render(<App pathname="/game/battle-arena" search="" />)
+
+    expect(await screen.findByTestId('column-control', {}, DASHBOARD)).toBeTruthy()
     expect(screen.queryByTestId('stage-page')).toBeNull()
+  })
+
+  /**
+   * Alamat ruang kendali ikut tersalin dan ikut di-bookmark. Game yang salah ketik — atau
+   * yang suatu hari dicabut dari registry — harus mendarat di katalog, bukan di layar putih
+   * tanpa satu pun jalan keluar.
+   */
+  it('falls back to the catalogue for a game id the registry does not know', async () => {
+    render(<App pathname="/game/tidak-ada" search="" />)
+
+    expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
+  })
+
+  it('navigates between catalogue and control room without reloading the page', async () => {
+    render(<App pathname="/" search="" />)
+    await screen.findByTestId('lobby-page', {}, DASHBOARD)
+
+    await userEvent.click(screen.getByRole('button', { name: /Buka ruang kendali/ }))
+
+    expect(await screen.findByTestId('column-control', {}, DASHBOARD)).toBeTruthy()
+    expect(window.location.pathname).toBe('/game/battle-arena')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Semua game' }))
+
+    expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
+    expect(window.location.pathname).toBe('/')
   })
 
   /**
@@ -32,14 +76,11 @@ describe('App', () => {
   it('survives the StrictMode mount/unmount/mount cycle that main.tsx puts it through', async () => {
     render(
       <StrictMode>
-        <App search="" />
+        <App pathname="/game/battle-arena" search="" />
       </StrictMode>,
     )
 
-    // Dashboard dimuat malas, jadi chunk-nya ditransformasi Vite saat assertion ini berjalan.
-    // Default 1000 ms Testing Library terlampaui saat seluruh suite berjalan bersamaan —
-    // yang diuji di sini adalah dashboard AKHIRNYA muncul, bukan seberapa cepat.
-    expect(await screen.findByTestId('column-control', {}, { timeout: 5000 })).toBeTruthy()
+    expect(await screen.findByTestId('column-control', {}, DASHBOARD)).toBeTruthy()
   })
 
   it('survives the same cycle on the overlay page', () => {

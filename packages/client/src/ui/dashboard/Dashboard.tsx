@@ -35,6 +35,8 @@ import './dashboard.css'
 export interface DashboardProps {
   scheduleFrame?: FrameScheduler
   cancelFrame?: FrameCanceller
+  /** Kembali ke katalog game. Tanpa ini top bar tidak menggambar tombolnya. */
+  onBack?: () => void
 }
 
 /** Ukuran sebelum pengukuran pertama, dan di jsdom yang tidak punya ResizeObserver. */
@@ -150,6 +152,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
         onOpenSettings={openSettings}
         notifications={model.notifications}
         onReadNotifications={model.actions.readNotifications}
+        onBack={props.onBack}
       />
 
       {/*

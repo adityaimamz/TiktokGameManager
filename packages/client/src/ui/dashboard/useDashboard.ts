@@ -4,6 +4,7 @@ import type { ConnectionStatus, MatchSummary, PlayerStats } from '@lga/shared'
 import type { BattleArenaConfig } from '../../games/battle-arena/config/index.js'
 import { createPersistence } from '../../platform/persistence/index.js'
 import { serverBaseUrl } from '../../platform/server-url.js'
+import { apiFetch } from '../../platform/app-key.js'
 import type { BattleAction } from '../../games/battle-arena/actions.js'
 import { matchStateFromIndex } from '../../games/battle-arena/snapshot.js'
 import type { RosterEntry } from '../../games/battle-arena/snapshot.js'
@@ -415,6 +416,12 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
 
   const flushConfig = useCallback(() => store.flush(), [store])
 
+  /** 401 = kunci hilang atau salah; buka dashboard sekali dengan `?k=APP_KEY`. */
+  const httpError = (status: number): string =>
+    status === 401
+      ? 'ditolak server (401) — buka dashboard dengan ?k=APP_KEY'
+      : `server menjawab ${status}`
+
   const actions = useMemo<DashboardActions>(
     () => ({
       connect: (username) => {
@@ -428,20 +435,27 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
         if (rig !== null) rig.chat.removeSource(rig.simulator.id)
         setSimulatorOn(false)
 
-        void fetch(`${serverBaseUrl()}/api/chat/connect`, {
+        void apiFetch(`${serverBaseUrl()}/api/chat/connect`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ username }),
         })
-          .then((response) => response.json())
+          // Badan jawaban HANYA dipercaya saat 2xx. Galat server punya bentuknya sendiri
+          // (`{ error }`), dan membacanya sebagai status membuat `viewerCount` undefined —
+          // itulah PENONTON NaN yang tampil bersama "unauthorized".
+          .then((response) =>
+            response.ok
+              ? (response.json() as Promise<ConnectionStatus>)
+              : { ...idleStatus(), state: 'failed' as const, error: httpError(response.status) },
+          )
           .then((status: ConnectionStatus) => setConnection(status))
           .catch(() =>
             setConnection({ ...idleStatus(), state: 'failed', error: 'server unreachable' }),
           )
       },
       disconnect: () => {
-        void fetch(`${serverBaseUrl()}/api/chat/disconnect`, { method: 'POST' })
-          .then((response) => response.json())
+        void apiFetch(`${serverBaseUrl()}/api/chat/disconnect`, { method: 'POST' })
+          .then((response) => (response.ok ? (response.json() as Promise<ConnectionStatus>) : idleStatus()))
           .then((status: ConnectionStatus) => setConnection(status))
           .catch(() => setConnection(idleStatus()))
       },
