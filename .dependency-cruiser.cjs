@@ -33,11 +33,11 @@ module.exports = {
       },
     },
     {
-      name: 'testing-helpers-stay-in-tests',
-      comment: 'src/testing/ hanya boleh dipakai file test, bukan kode produksi',
+      name: 'production-never-imports-tests',
+      comment: 'kode produksi tidak boleh bergantung pada apa pun di tests/ — semua yang ada di sana ada untuk melayani test, bukan runtime',
       severity: 'error',
-      from: { path: '^packages/client/src/(framework|platform|games|ui)' },
-      to: { path: '^packages/client/src/testing' },
+      from: { path: '^packages/[^/]+/src' },
+      to: { path: '^packages/[^/]+/tests' },
     },
     {
       name: 'server-knows-no-client',
@@ -65,7 +65,7 @@ module.exports = {
       severity: 'warn',
       from: {
         orphan: true,
-        pathNot: ['\\.d\\.ts$', 'index\\.ts$', '^packages/client/src/testing/'],
+        pathNot: ['\\.d\\.ts$', 'index\\.ts$', '/tests/'],
       },
       to: {},
     },

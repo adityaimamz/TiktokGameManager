@@ -177,9 +177,9 @@ npm run verify         # keempatnya, berurutan
 ```
 
 ```bash
-npx vitest run packages/client/src/games/battle-arena/match.test.ts   # satu berkas
-npx vitest run -t "replays identically from the same seed"            # satu test per nama
-npx vitest run packages/client/src/games/battle-arena/config/         # satu direktori
+npx vitest run packages/client/tests/games/battle-arena/match.test.ts   # satu berkas
+npx vitest run -t "replays identically from the same seed"              # satu test per nama
+npx vitest run packages/client/tests/games/battle-arena/config/         # satu direktori
 ```
 
 **`npm run verify` adalah gerbangnya.** Keempatnya memeriksa hal yang berbeda dan tidak satu pun menggantikan yang lain. Saat ini: **1661 test lulus**, 27 skip (repository test yang butuh `TEST_DATABASE_URL`).
