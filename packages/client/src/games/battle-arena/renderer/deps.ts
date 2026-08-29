@@ -16,8 +16,14 @@ export interface RenderDeps {
   layout: StageLayout
   config: BattleArenaConfig
   avatars: AvatarCache
-  /** Gambar latar yang sudah dimuat, atau null bila belum/siap. */
-  image?: (url: string) => CanvasImageSource | null
+  /**
+   * Gambar latar yang sudah dimuat DAN sudah diskalakan ke ukuran yang diminta, atau null
+   * bila belum siap.
+   *
+   * Ukurannya dioper supaya penskalaan terjadi sekali di cache, bukan tiap frame di sini:
+   * `drawImage` beropsi ukuran meresample penuh setiap kali dipanggil.
+   */
+  image?: (url: string, width: number, height: number) => CanvasImageSource | null
   nowMs: number
   /** Seberapa pudar tiap slot yang mati. Diisi renderer, diamati sebelum menggambar. */
   deathFade: DeathFade

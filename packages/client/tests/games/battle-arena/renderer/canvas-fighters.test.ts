@@ -195,6 +195,30 @@ describe('drawFighters', () => {
   })
 })
 
+/**
+ * Cerminan `glow.test.ts` untuk berkas yang sebenarnya melanggar.
+ *
+ * `glow.ts` melarang `shadowBlur` dan test-nya menegakkan larangan itu — tapi hanya di dalam
+ * `glow.ts`. Cincin HP hidup di `canvas.ts` dan dulu menyetel satu blur PER FIGHTER PER
+ * FRAME, jadi larangannya lolos tanpa suara persis di tempat jumlahnya tumbuh dengan jumlah
+ * penonton. `shadowBlur` disisakan untuk elemen besar yang bisa dihitung jari — jahitan garis
+ * tengah, core berkas laser, bolt petir — dan cincin HP bukan salah satunya.
+ */
+describe('drawFighters tidak pernah mem-blur', () => {
+  it('TIDAK PERNAH menyetel shadowBlur, berapa pun fighter-nya', () => {
+    const ctx = createRecordingContext()
+    drawFighters(
+      ctx,
+      [fighter({ slotIndex: 0 }), fighter({ slotIndex: 1, hp: 30 })],
+      2,
+      roster([{}, {}]),
+      deps(),
+    )
+
+    expect(ctx.callsOf('set:shadowBlur')).toHaveLength(0)
+  })
+})
+
 describe('drawEffects', () => {
   const viewWithEffects = (
     effects: {
@@ -434,8 +458,10 @@ describe('drawArenaFlash', () => {
 /**
  * Blob digambar sebesar HP BERJALAN-nya, lewat `fighterScale` yang sama dengan hitbox.
  *
- * Dua `arc` pertama tiap fighter adalah CINCIN HP (radius + lebar garisnya); yang ketiga
- * barulah badan blob-nya, digambar tepat pada `radius`. Dikunci sebagai relasi terhadap
+ * Badan blob digambar tepat pada `radius`, sementara cincin HP selalu di `radius + lebar
+ * cincinnya` — jadi blob adalah lingkaran TERDALAM di antara semua `arc` sebuah fighter.
+ * Dipilih lewat relasi itu dan bukan lewat indeks panggilan, supaya jumlah lapis cincin
+ * boleh berubah tanpa menyeret test ukuran ikut patah. Dikunci sebagai relasi terhadap
  * `fighterScale`, bukan sebagai angka piksel: satu rumus di arena.ts menggerakkan gambar
  * DAN kotak tabrak, dan test yang menuliskan ulang angkanya justru mengizinkan keduanya
  * berpisah.
@@ -445,7 +471,7 @@ describe('ukuran fighter mengikuti HP', () => {
     const ctx = createRecordingContext()
     const d = deps()
     drawFighters(ctx, [fighter({ hp, maxHp })], 1, roster([{}]), d)
-    return Number(ctx.callsOf('arc')[2]?.args[2])
+    return Math.min(...ctx.callsOf('arc').map((call) => Number(call.args[2])))
   }
 
   const base = defaultConfig().gameplay.baseHp

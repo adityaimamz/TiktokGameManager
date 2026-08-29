@@ -3,6 +3,19 @@ export type FrameCanceller = (handle: number) => void
 
 export interface RenderLoopOptions {
   onFrame: (timestampMs: number) => void
+  /**
+   * Jarak minimum antar-frame yang DIGAMBAR. 0 (bawaan) berarti tanpa plafon.
+   *
+   * Ada untuk preview ruang kendali, bukan untuk overlay: di monitor 144 Hz preview itu
+   * menggambar 144 frame per detik ke dalam encoder 30 fps, dan tidak satu pun kelebihannya
+   * terlihat siapa pun — sementara GPU-nya sama dengan yang dipakai encoder OBS. Overlay
+   * membiarkannya kosong; OBS yang memutuskan kadensinya.
+   *
+   * Aman untuk tick: tab pemilik engine menitipkan `host.frame()` di `onFrame`, jadi frame
+   * yang dijatuhkan juga menunda tick — tapi `TickScheduler` menumpuk waktu dan mengejar
+   * sampai 3 tick tertunda (150 ms), jauh di atas plafon 33 ms yang dipakai ruang kendali.
+   */
+  minFrameMs?: number
   /** Default requestAnimationFrame. Diinjeksi di test agar tidak butuh browser. */
   scheduleFrame?: FrameScheduler
   cancelFrame?: FrameCanceller
@@ -83,14 +96,21 @@ export const defaultCancel: FrameCanceller = (handle) => {
  */
 export class RenderLoop {
   private readonly onFrame: (timestampMs: number) => void
+  private readonly minFrameMs: number
   private readonly scheduleFrame: FrameScheduler
   private readonly cancelFrame: FrameCanceller
 
   private handle: number | null = null
   private running = false
+  /**
+   * NEGATIVE_INFINITY, bukan 0: frame pertama harus selalu digambar, berapa pun timestamp
+   * yang diberikan penjadwal.
+   */
+  private lastDrawnAtMs = Number.NEGATIVE_INFINITY
 
   constructor(opts: RenderLoopOptions) {
     this.onFrame = opts.onFrame
+    this.minFrameMs = opts.minFrameMs ?? 0
     this.scheduleFrame = opts.scheduleFrame ?? defaultSchedule
     this.cancelFrame = opts.cancelFrame ?? defaultCancel
   }
@@ -117,7 +137,12 @@ export class RenderLoop {
     this.handle = this.scheduleFrame((timestamp) => {
       this.handle = null
       if (!this.running) return
-      this.onFrame(timestamp)
+      if (timestamp - this.lastDrawnAtMs >= this.minFrameMs) {
+        this.lastDrawnAtMs = timestamp
+        this.onFrame(timestamp)
+      }
+      // Penjadwalan ulang DI LUAR gerbang di atas: loop yang berhenti menjadwalkan gara-gara
+      // satu frame dijatuhkan akan membeku selamanya.
       if (this.running) this.schedule()
     })
   }

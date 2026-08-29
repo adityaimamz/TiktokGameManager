@@ -10,6 +10,9 @@ import { Stage } from '../../src/ui/Stage.js'
 
 afterEach(cleanup)
 afterEach(() => vi.restoreAllMocks())
+// `Object.defineProperty` tidak dicabut `restoreAllMocks`; tanpa baris ini, test pertama yang
+// memalsukan dpr mewariskannya ke seluruh berkas.
+afterEach(() => Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true }))
 
 const snapshot = (tick: number): Float32Array => {
   const buf = new Float32Array(snapshotLength(1, 0, 0))
@@ -59,6 +62,27 @@ describe('Stage', () => {
     const canvas = screen.getByTestId('stage-canvas') as HTMLCanvasElement
     expect(canvas.width).toBe(2000)
     expect(canvas.height).toBe(900)
+  })
+
+  it('menghormati maxDpr — preview ruang kendali tidak menggambar pada dpr layar', () => {
+    Object.defineProperty(window, 'devicePixelRatio', { value: 2, configurable: true })
+
+    stage({ size: { width: 400, height: 700 }, maxDpr: 1 })
+
+    const canvas = screen.getByTestId('stage-canvas') as HTMLCanvasElement
+    expect(canvas.width).toBe(400)
+    expect(canvas.height).toBe(700)
+  })
+
+  // Gerbang, bukan cakupan: ia gagal kalau kelak ada yang menjadikan maxDpr bawaan 1 dan
+  // diam-diam menurunkan ketajaman overlay — satu-satunya permukaan yang dilihat penonton.
+  it('tetap menjepit di 2 saat maxDpr tidak diisi — overlay tidak berubah', () => {
+    Object.defineProperty(window, 'devicePixelRatio', { value: 3, configurable: true })
+
+    stage({ size: { width: 400, height: 700 } })
+
+    const canvas = screen.getByTestId('stage-canvas') as HTMLCanvasElement
+    expect(canvas.width).toBe(800)
   })
 
   it('keeps the legend inert unless it was asked to be interactive', () => {

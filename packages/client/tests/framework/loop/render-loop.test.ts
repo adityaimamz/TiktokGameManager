@@ -111,3 +111,85 @@ describe('RenderLoop', () => {
     expect(loop.isRunning).toBe(false)
   })
 })
+
+/**
+ * Plafon laju gambar.
+ *
+ * Ada untuk preview ruang kendali, bukan untuk overlay: di monitor 144 Hz preview itu
+ * menggambar 144 frame per detik ke dalam encoder 30 fps, dan tidak satu pun kelebihannya
+ * terlihat siapa pun.
+ */
+describe('RenderLoop dengan minFrameMs', () => {
+  it('menjatuhkan frame yang datang lebih rapat dari minFrameMs', () => {
+    const fake = createFakeScheduler()
+    const frames: number[] = []
+    const loop = new RenderLoop({
+      onFrame: (t) => frames.push(t),
+      minFrameMs: 33,
+      scheduleFrame: fake.schedule,
+      cancelFrame: fake.cancel,
+    })
+    loop.start()
+
+    fake.flush(0)
+    fake.flush(16)
+    fake.flush(33)
+    fake.flush(50)
+    fake.flush(66)
+
+    expect(frames).toEqual([0, 33, 66])
+  })
+
+  it('tetap menjadwalkan frame berikutnya meski yang ini dijatuhkan', () => {
+    const fake = createFakeScheduler()
+    const loop = new RenderLoop({
+      onFrame: () => {},
+      minFrameMs: 33,
+      scheduleFrame: fake.schedule,
+      cancelFrame: fake.cancel,
+    })
+    loop.start()
+
+    fake.flush(0)
+    fake.flush(16)
+
+    // Frame yang dijatuhkan lalu berhenti menjadwalkan ulang akan membekukan loop-nya
+    // SELAMANYA — jauh lebih buruk daripada laju gambar yang tidak dijepit.
+    expect(fake.pendingCount).toBe(1)
+  })
+
+  it('menggambar frame pertama berapa pun timestamp yang diberikan penjadwal', () => {
+    const fake = createFakeScheduler()
+    const frames: number[] = []
+    const loop = new RenderLoop({
+      onFrame: (t) => frames.push(t),
+      minFrameMs: 33,
+      scheduleFrame: fake.schedule,
+      cancelFrame: fake.cancel,
+    })
+    loop.start()
+
+    fake.flush(5)
+
+    expect(frames).toEqual([5])
+  })
+
+  // Gerbang, bukan cakupan: ia gagal kalau kelak ada yang memberi plafon bawaan dan
+  // diam-diam menjepit overlay — satu-satunya permukaan yang dilihat penonton.
+  it('menggambar setiap frame saat minFrameMs tidak diisi', () => {
+    const fake = createFakeScheduler()
+    const frames: number[] = []
+    const loop = new RenderLoop({
+      onFrame: (t) => frames.push(t),
+      scheduleFrame: fake.schedule,
+      cancelFrame: fake.cancel,
+    })
+    loop.start()
+
+    fake.flush(0)
+    fake.flush(1)
+    fake.flush(2)
+
+    expect(frames).toEqual([0, 1, 2])
+  })
+})

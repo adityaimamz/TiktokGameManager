@@ -166,7 +166,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, deps: RenderDeps): void
     ctx.fillStyle = background.value
     ctx.fillRect(arena.x, arena.y, arena.width, arena.height)
   } else if (background.kind === 'image') {
-    const image = deps.image?.(background.url) ?? null
+    const image = deps.image?.(background.url, arena.width, arena.height) ?? null
     if (image !== null) ctx.drawImage(image, arena.x, arena.y, arena.width, arena.height)
   }
 
@@ -179,7 +179,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, deps: RenderDeps): void
     const image =
       sideConfig.backgroundImage === null
         ? null
-        : (deps.image?.(sideConfig.backgroundImage) ?? null)
+        : (deps.image?.(sideConfig.backgroundImage, half, arena.height) ?? null)
     if (image !== null) {
       ctx.drawImage(image, x, arena.y, half, arena.height)
       continue
@@ -365,21 +365,50 @@ export function drawFighters(
      * peramban yang jadi sasaran; satu busur yang panjangnya `ratio` menghasilkan bentuk
      * yang sama persis dan bisa dibaca test tanpa objek gradien.
      */
+    // Dibaca balik, bukan dihitung ulang: baris di atas sudah menaruh alpha DeathFade di
+    // sana, dan `strokeLayer` akan MENIMPA globalAlpha sehingga nilainya harus dipegang dulu.
+    const fadeAlpha = ctx.globalAlpha
+    const ringWidth = scaled(layout, 4)
+    // DI LUAR loop di bawah: `strokeLayer` mengubah lineWidth tiap lapis, dan cincin yang
+    // membaca `ctx.lineWidth` di dalam loop akan digambar di tiga radius yang berbeda.
+    const ringRadius = radius + ringWidth
+
     ctx.save()
-    ctx.lineWidth = scaled(layout, 4)
+    ctx.lineWidth = ringWidth
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'
     ctx.beginPath()
-    ctx.arc(cx, cy, radius + ctx.lineWidth, 0, Math.PI * 2)
+    ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2)
     ctx.stroke()
 
-    // Fighter sehat menyala, yang sekarat nyaris padam: intensitas cahaya adalah HP yang
-    // terbaca dari jauh, saat cincin tipisnya sendiri sudah terlalu kecil untuk dilihat.
-    ctx.shadowColor = side.color
-    ctx.shadowBlur = scaled(layout, 4 + ratio * 14)
-    ctx.strokeStyle = side.color
-    ctx.beginPath()
-    ctx.arc(cx, cy, radius + ctx.lineWidth, -Math.PI / 2, -Math.PI / 2 + ratio * Math.PI * 2)
-    ctx.stroke()
+    /*
+     * Fighter sehat menyala, yang sekarat nyaris padam: intensitas cahaya adalah HP yang
+     * terbaca dari jauh, saat cincin tipisnya sendiri sudah terlalu kecil untuk dilihat.
+     *
+     * TIGA LAPIS CAHAYA, bukan satu stroke ber-`shadowBlur`. Ini larangan `glow.ts` yang
+     * sudah tertulis, ditegakkan di tempat yang sebenarnya melanggarnya: satu blur per
+     * fighter per frame tumbuh dengan jumlah penonton, dan itu persis bentuk biaya yang
+     * dilarang di sana. Lapis terluar keluar di `ringWidth * 4.5` = `scaled(18)`, tepat
+     * sebaran blur maksimum yang digantikannya (`4 + ratio * 14`), sementara lapis terdalam
+     * keluar `ringWidth * 1` — persis lebar garis yang digambar sebelumnya.
+     *
+     * Intensitasnya pindah dari radius blur ke alpha DUA LAPIS LUAR saja. Core sengaja tetap
+     * opasitas penuh: sebelum ini pun busur berwarnanya tidak pernah meredup, hanya glow-nya
+     * yang menyusut, dan cincin fighter sekarat harus tetap terbaca.
+     *
+     * Ketiga entri palet sama-sama warna sisi, BUKAN core putih seperti projectile — cincin
+     * HP adalah penanda identitas sisi, dan core putih menggeser warnanya.
+     */
+    const ringPalette: GlowPalette = [side.color, side.color, side.color]
+    const glowAlpha = fadeAlpha * (0.3 + ratio * 0.7)
+    for (let layer = 0; layer < GLOW_LAYERS; layer++) {
+      const core = layer === GLOW_LAYERS - 1
+      strokeLayer(ctx, layer, ringPalette, ringWidth, core ? fadeAlpha : glowAlpha)
+      // `strokeLayer` menyetel 'round' untuk garis lurus; ujung busur progress harus rata.
+      ctx.lineCap = 'butt'
+      ctx.beginPath()
+      ctx.arc(cx, cy, ringRadius, -Math.PI / 2, -Math.PI / 2 + ratio * Math.PI * 2)
+      ctx.stroke()
+    }
     ctx.restore()
 
     const avatar = deps.avatars.get(entry?.avatarUrl ?? null, entry?.username ?? '?')
@@ -583,7 +612,7 @@ export function shakeOffset(
 export interface BattleArenaRendererOptions {
   layout: StageLayout
   avatars?: AvatarCache
-  image?: (url: string) => CanvasImageSource | null
+  image?: (url: string, width: number, height: number) => CanvasImageSource | null
 }
 
 /**
@@ -595,7 +624,9 @@ export interface BattleArenaRendererOptions {
 export class BattleArenaRenderer implements IGameRenderer<SnapshotView, BattleArenaConfig> {
   private layout: StageLayout
   private readonly avatars: AvatarCache
-  private readonly image: ((url: string) => CanvasImageSource | null) | undefined
+  private readonly image:
+    | ((url: string, width: number, height: number) => CanvasImageSource | null)
+    | undefined
   private readonly roster = new Map<number, RosterEntry>()
   private readonly fighters: InterpolatedFighter[] = []
   private readonly ultimates: InterpolatedUltimate[] = []

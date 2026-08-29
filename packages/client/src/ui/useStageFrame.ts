@@ -7,6 +7,8 @@ export interface UseStageFrameOptions {
   onFrame: (timestampMs: number) => void
   /** Jarak minimum antar-render ulang HUD. Default 50 ms, sama dengan satu tick. */
   hudIntervalMs?: number
+  /** Plafon laju gambar, diteruskan apa adanya ke RenderLoop. Kosong = tanpa plafon. */
+  minFrameMs?: number
   scheduleFrame?: FrameScheduler
   cancelFrame?: FrameCanceller
 }
@@ -24,7 +26,7 @@ export function useStageFrame(opts: UseStageFrameOptions): number {
   onFrame.current = opts.onFrame
 
   const interval = opts.hudIntervalMs ?? 50
-  const { scheduleFrame, cancelFrame } = opts
+  const { minFrameMs, scheduleFrame, cancelFrame } = opts
 
   useEffect(() => {
     let lastHudAtMs = Number.NEGATIVE_INFINITY
@@ -35,12 +37,15 @@ export function useStageFrame(opts: UseStageFrameOptions): number {
         lastHudAtMs = timestampMs
         setHudTick((tick) => tick + 1)
       },
+      minFrameMs,
       scheduleFrame,
       cancelFrame,
     })
     loop.start()
     return () => loop.stop()
-  }, [interval, scheduleFrame, cancelFrame])
+    // minFrameMs ikut ke sini: tanpa itu, mengubah plafon tidak berpengaruh sampai
+    // komponennya di-mount ulang.
+  }, [interval, minFrameMs, scheduleFrame, cancelFrame])
 
   return hudTick
 }

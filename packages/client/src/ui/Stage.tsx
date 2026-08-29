@@ -66,6 +66,22 @@ export interface StageProps {
   onFire?: (action: BattleAction) => void
   /** Ikon gift sungguhan untuk action legend, nama huruf kecil → URL (lihat useGiftCatalog). */
   giftIcons?: ReadonlyMap<string, string>
+  /**
+   * Plafon piksel fisik per piksel CSS. Bawaan 2 — overlay memakainya apa adanya.
+   *
+   * Ruang kendali mengoper 1: preview-nya maksimal 428 px lebar, monitor keyakinan dan bukan
+   * produk, sementara dpr 2 melipatempatkan SELURUH biaya frame-nya — Canvas 2D, unggahan
+   * texture post-process, dan ketujuh pass WebGL — di GPU yang sama dengan encoder OBS.
+   */
+  maxDpr?: number
+  /**
+   * Jarak minimum antar-frame yang DIGAMBAR. Kosong berarti tanpa plafon.
+   *
+   * Sama alasannya dengan `maxDpr`, dan sama sasarannya: overlay membiarkannya kosong supaya
+   * OBS yang memutuskan kadensinya, ruang kendali menjepitnya karena preview 144 fps di
+   * monitor 144 Hz seluruhnya masuk ke encoder 30 fps.
+   */
+  minFrameMs?: number
   scheduleFrame?: FrameScheduler
   cancelFrame?: FrameCanceller
 }
@@ -101,10 +117,14 @@ export function Stage(props: StageProps): ReactElement {
    * dirender ulang tiap frame oleh `hudTick`, jadi zoom peramban atau pindah monitor terbaca
    * sendiri tanpa satu pun listener.
    *
-   * DIJEPIT 2. Di atas itu biaya isi naik kuadratik — jalur FX menjalankan bright, dua blur,
-   * dan pass akhir di atas bidang yang sama — sementara matanya nyaris tidak membedakan.
+   * DIJEPIT 2 secara bawaan. Di atas itu biaya isi naik kuadratik — jalur FX menjalankan
+   * bright, dua blur, dan pass akhir di atas bidang yang sama — sementara matanya nyaris
+   * tidak membedakan. Pemanggil boleh menjepit lebih rendah lewat `maxDpr`; lihat prop-nya.
    */
-  const dpr = Math.min(2, (typeof window === 'undefined' ? 1 : window.devicePixelRatio) || 1)
+  const dpr = Math.min(
+    props.maxDpr ?? 2,
+    (typeof window === 'undefined' ? 1 : window.devicePixelRatio) || 1,
+  )
   const canvasWidth = Math.round(size.width * dpr)
   const canvasHeight = Math.round(size.height * dpr)
 
@@ -160,6 +180,7 @@ export function Stage(props: StageProps): ReactElement {
       // tidak boleh memajukan partikel sejauh itu dalam satu langkah integrasi.
       renderer.render(ctx, history.current, config, props.getAlpha(), Math.min(250, Math.max(0, dtMs)))
     },
+    minFrameMs: props.minFrameMs,
     scheduleFrame: props.scheduleFrame,
     cancelFrame: props.cancelFrame,
   })

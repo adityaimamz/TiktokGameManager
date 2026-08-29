@@ -365,6 +365,13 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
                     interactive
                     onFire={model.actions.fire}
                     giftIcons={giftIcons}
+                    // Preview ini MONITOR KEYAKINAN, bukan produk: lebarnya maksimal 428 px
+                    // dan yang menontonnya cuma creator. dpr 2 melipatempatkan seluruh biaya
+                    // frame-nya, dan 144 fps di monitor 144 Hz seluruhnya masuk ke encoder
+                    // 30 fps — keduanya di GPU yang sama dengan encoder OBS. Overlay, yang
+                    // dilihat penonton, tidak mengoper satu pun dari keduanya.
+                    maxDpr={1}
+                    minFrameMs={1000 / 30}
                     scheduleFrame={props.scheduleFrame}
                     cancelFrame={props.cancelFrame}
                   />
