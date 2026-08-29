@@ -174,8 +174,23 @@ export function startNewRound(state: BattleArenaState, gameplay: GameplayConfig)
   state.fighters.restoreForNewRound(gameplay)
 }
 
-/** State Reset: arena dikosongkan sepenuhnya (Req 23 AC8). */
-export function resetMatch(state: BattleArenaState): void {
+/**
+ * State Reset: skor, ronde, dan seluruh benda hidup dinolkan.
+ *
+ * `keepRoster` memisahkan DUA maksud yang dulu memakai fungsi ini bersama-sama. Reset yang
+ * ditekan creator memang mengosongkan arena (Req 23 AC8). Match yang selesai lalu melingkar
+ * ke lobi berikutnya TIDAK: mengosongkannya berarti setiap penonton yang sudah bermain harus
+ * mengetik keyword lagi, dan siaran sungguhan kehilangan seluruh rosternya tiap match.
+ *
+ * Yang dipertahankan hanya keanggotaannya. Statistik dan pertumbuhan HP tetap dinolkan lewat
+ * `startNewMatch` — match baru yang dimulai dengan papan skor dan HP match lalu bukan match
+ * baru, dan HP yang menumpuk lintas-match akan menggelembung tanpa batas.
+ */
+export function resetMatch(
+  state: BattleArenaState,
+  gameplay: GameplayConfig,
+  keepRoster = false,
+): void {
   state.tick = 0
   state.roundIndex = 0
   state.roundScore.a = 0
@@ -189,5 +204,6 @@ export function resetMatch(state: BattleArenaState): void {
   state.activeUltimates.length = 0
   state.pendingUltimates.length = 0
   state.nextUltimateId = 0
-  state.fighters.clear()
+  if (keepRoster) state.fighters.startNewMatch(gameplay)
+  else state.fighters.clear()
 }

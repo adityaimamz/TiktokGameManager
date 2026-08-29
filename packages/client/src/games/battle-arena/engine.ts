@@ -6,6 +6,7 @@ import { TickScheduler } from '../../framework/loop/tick-scheduler.js'
 import { createRng } from '../../framework/rng.js'
 import type { Rng } from '../../framework/rng.js'
 import type { IGameEngine } from '../../framework/types/plugin.js'
+import { createBattleAction, sideTarget } from './actions.js'
 import type { BattleAction } from './actions.js'
 import { RESULT_AUTO_ADVANCE_MS, TICK_MS } from './arena.js'
 import { drainActions } from './combat.js'
@@ -21,7 +22,8 @@ import { createBattleArenaState, resetMatch, roundsNeeded, startNewRound } from 
 import { markUltimatesStale } from './ultimate.js'
 import type { BattleArenaState } from './state.js'
 import { BattleArenaTriggers } from './triggers.js'
-import type { SideId } from './types.js'
+import { fighterKey } from './types.js'
+import type { ActorIdentity, SideId } from './types.js'
 
 /**
  * Pengisi roster saat arena sepi.
@@ -58,6 +60,20 @@ const ACTIVE_STATES: ReadonlySet<MatchState> = new Set<MatchState>([
 
 /** Batas rantai transisi dalam satu update, penjaga terhadap siklus tak terduga. */
 const MAX_TRANSITIONS_PER_UPDATE = 8
+
+/**
+ * Panjang daftar tunggu dan penampung komentar, keduanya membuang yang TERLAMA saat penuh.
+ *
+ * Sebesar dua kali sisi terpadat yang pernah ditargetkan (Req 20: 200 fighter). Yang antre
+ * lebih lama dari itu sudah berhenti menunggu.
+ */
+const PENDING_LIMIT = 200
+
+/** Menambah ke ekor, membuang kepala saat penuh. */
+function push<T>(list: T[], item: T): void {
+  list.push(item)
+  if (list.length > PENDING_LIMIT) list.shift()
+}
 
 export class BattleArenaEngine
   implements IGameEngine<BattleArenaState, BattleArenaConfig, ChatMessage, BattleAction>
@@ -135,7 +151,18 @@ export class BattleArenaEngine
   }
 
   start(): void {
-    this.machine.transition('waitingFighters')
+    this.enterWaitingFighters()
+  }
+
+  /**
+   * Satu-satunya pintu menuju lobi, dipakai `start()` maupun lingkaran otomatis sesudah
+   * match. Komentar yang tertampung dilepas di sini supaya penonton yang mengetik selama
+   * layar hasil tidak perlu mengetik lagi.
+   */
+  private enterWaitingFighters(): boolean {
+    if (!this.machine.transition('waitingFighters')) return false
+    this.flushBufferedComments()
+    return true
   }
 
   /** Menjeda simulasi tanpa mengubah state — tombol Pause Game. */
@@ -147,7 +174,7 @@ export class BattleArenaEngine
     this.scheduler.stop()
     this.loopAfterReset = false
     if (this.machine.state === 'idle') {
-      resetMatch(this.state)
+      resetMatch(this.state, this.config.gameplay)
       return
     }
     if (this.machine.transition('reset')) this.advanceStates()
@@ -164,6 +191,26 @@ export class BattleArenaEngine
     this.queue.enqueue(action)
   }
 
+  /**
+   * Penonton yang mengetik saat arena penuh, menunggu kursi kosong.
+   *
+   * Ada supaya keyword yang diketik selalu berujung fighter: tanpa ini penolakan `sideFull`
+   * senyap — penonton mengetik, tidak terjadi apa-apa, dan tidak satu pun tempat di aplikasi
+   * ini menyebutkan alasannya. Kursi kosong saat seseorang pindah sisi atau match baru
+   * dimulai, dan yang antre masuk sendiri tanpa perlu mengetik ulang.
+   */
+  private readonly waitlist: { actor: ActorIdentity; side: SideId }[] = []
+
+  /**
+   * Komentar yang datang saat match tidak menerima event — layar hasil (10 detik) dan idle.
+   *
+   * Dibuang begitu saja dulu, dan itu lubang yang sama besarnya: sepuluh detik tiap match
+   * ketika penonton mengetik dan tidak pernah masuk arena. Hanya komentar yang ditampung;
+   * gift dan like TIDAK, karena memutarnya terlambat berarti ultimate meledak di match yang
+   * salah dan koin dihitung dua kali.
+   */
+  private readonly bufferedComments: ChatMessage[] = []
+
   handleMessage(message: ChatMessage): void {
     // Viewer asli pertama menyapu bersih fighter demo (Req 18 AC8). Filter satu baris ini
     // yang dimungkinkan oleh keputusan menjadikan simulator sebuah ChatSource biasa.
@@ -173,7 +220,10 @@ export class BattleArenaEngine
       this.listener({ type: 'realViewerArrived', removedDemoFighters: removed })
     }
 
-    if (!ACTIVE_STATES.has(this.machine.state)) return
+    if (!ACTIVE_STATES.has(this.machine.state)) {
+      if (message.kind === 'textMessageEvent') push(this.bufferedComments, message)
+      return
+    }
 
     // Sebelum trigger: Req 15 AC5 menghitung penyumbang terbesar, termasuk gift yang tidak
     // cocok dengan satu rule pun. Trigger sendiri tidak boleh menyentuh state (Req 30 AC4).
@@ -194,6 +244,7 @@ export class BattleArenaEngine
    * menggambar di 60 fps di atas state yang hanya berubah 20 kali per detik.
    */
   update(): number {
+    this.admitFromWaitlist()
     if (this.machine.state !== 'battle') {
       this.topUpRoster()
       // Keputusan D5: action tetap dikuras di luar Battle, kalau tidak join di lobi tidak
@@ -223,16 +274,85 @@ export class BattleArenaEngine
     }
   }
 
-  /** Satu bot dilepas per satu viewer asli yang bergabung di sisi yang sama. */
+  /**
+   * Satu bot dilepas per satu viewer asli yang bergabung di sisi yang sama.
+   *
+   * Tidak berlaku saat sisinya sudah mentok: kursinya baru saja dibebaskan
+   * `FighterRegistry.join` — seorang mayat atau justru seekor bot — dan melepas satu bot
+   * LAGI di atasnya menyusutkan sisi tiap kali seorang viewer masuk.
+   */
   private emit(event: EngineEvent): void {
     if (
       event.type === 'fighterJoined' &&
       this.roster !== null &&
-      event.fighter.platform !== 'practice'
+      event.fighter.platform !== 'practice' &&
+      this.state.fighters.countOnSide(event.fighter.side) <
+        this.config.gameplay.maxFightersPerSide
     ) {
       this.roster.releaseOne(this.state.fighters, event.fighter.side)
     }
+    // Hanya sisi yang benar-benar penuh oleh fighter HIDUP yang sampai ke sini: mayat dan bot
+    // sudah disuruh mundur `FighterRegistry.join`. `alreadyOnSide` tidak diantre — orangnya
+    // sudah bermain.
+    if (event.type === 'joinRejected' && event.reason === 'sideFull') {
+      const key = fighterKey(event.actor)
+      const existing = this.waitlist.find((entry) => fighterKey(entry.actor) === key)
+      // Sisinya DITIMPA, bukan ditambah entri kedua: yang berlaku adalah keyword terakhir
+      // yang ia ketik, sama seperti pindah sisi bagi yang sudah punya fighter.
+      if (existing !== undefined) existing.side = event.side
+      else push(this.waitlist, { actor: event.actor, side: event.side })
+    }
     this.listener(event)
+  }
+
+  /**
+   * Memasukkan yang antre begitu sisinya punya kursi.
+   *
+   * Lewat ActionQueue, bukan langsung ke registry: jalurnya harus sama persis dengan yang
+   * ditempuh komentar sungguhan, supaya efek join, event, dan pelepasan bot tidak bisa
+   * berbeda antara keduanya.
+   */
+  private admitFromWaitlist(): void {
+    if (this.waitlist.length === 0) return
+
+    const remaining: { actor: ActorIdentity; side: SideId }[] = []
+
+    for (const entry of this.waitlist) {
+      // Sudah masuk lewat jalan lain — sisi seberang, atau gift yang mendaftarkannya.
+      if (this.state.fighters.get(fighterKey(entry.actor)) !== undefined) continue
+      // Ditanyakan ke registry, bukan dihitung sendiri: aturan kursi cuma boleh punya satu
+      // sumber, kalau tidak yang antre tertahan di sisi yang sebenarnya masih menerima.
+      if (!this.state.fighters.canSeat(entry.side, this.config.gameplay)) {
+        remaining.push(entry)
+        continue
+      }
+      this.queue.enqueue(
+        createBattleAction({
+          type: 'spawn',
+          target: sideTarget(entry.side),
+          value: 0,
+          actor: entry.actor,
+        }),
+      )
+    }
+
+    this.waitlist.length = 0
+    this.waitlist.push(...remaining)
+  }
+
+  /**
+   * Melepas komentar yang tertampung ke lobi yang baru dibuka.
+   *
+   * Diterjemahkan ulang lewat trigger, bukan disimpan sebagai Action: config bisa berubah
+   * selama layar hasil, dan yang berlaku adalah rule yang aktif SEKARANG.
+   */
+  private flushBufferedComments(): void {
+    if (this.bufferedComments.length === 0) return
+    const pending = [...this.bufferedComments]
+    this.bufferedComments.length = 0
+    for (const message of pending) {
+      for (const action of this.triggersImpl.resolve(message)) this.queue.enqueue(action)
+    }
   }
 
   private topUpRoster(): void {
@@ -284,13 +404,16 @@ export class BattleArenaEngine
       }
 
       case 'reset':
-        resetMatch(this.state)
+        // `loopAfterReset` sudah membedakan keduanya sejak lama: match yang selesai lalu
+        // melingkar ke lobi berikutnya menandainya, Reset yang ditekan creator tidak. Itu
+        // pula yang memisahkan roster yang bertahan dari arena yang benar-benar dikosongkan.
+        resetMatch(this.state, this.config.gameplay, this.loopAfterReset)
         return this.machine.transition('idle')
 
       case 'idle': {
         if (!this.loopAfterReset) return false
         this.loopAfterReset = false
-        return this.machine.transition('waitingFighters')
+        return this.enterWaitingFighters()
       }
 
       default:

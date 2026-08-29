@@ -264,9 +264,14 @@ export function withActionChoice(
       growWithNuke: undefined,
     })
   }
+  const rule = config.triggers.find((entry) => entry.id === ruleId)
   return withThen(config, ruleId, {
     actionType: 'nuke',
     nukeType: choice.slice(NUKE_CHOICE.length) as NukeType,
+    // Damage nuke milik rule sejak ia jadi rule nuke; angka yang tertinggal dari aksi
+    // SEBELUMNYA (nilai heal, misalnya) tidak ada hubungannya dengan kerasnya ultimate.
+    // Yang sudah nuke tidak disentuh — mengganti varian tidak boleh menghapus setelan damage.
+    ...(rule?.then.actionType === 'nuke' ? {} : { value: config.gameplay.nuke.damage }),
   })
 }
 

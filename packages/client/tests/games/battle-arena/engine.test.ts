@@ -8,6 +8,7 @@ import { createBattleAction, sideTarget } from '../../../src/games/battle-arena/
 import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
 import type { BattleArenaConfig } from '../../../src/games/battle-arena/config/index.js'
 import { BattleArenaEngine } from '../../../src/games/battle-arena/engine.js'
+import { PracticeFighters } from '../../../src/games/battle-arena/practice-fighters.js'
 import type { EngineEvent } from '../../../src/games/battle-arena/events.js'
 
 /** Ronde pendek: satu pukulan mematikan, jadi satu ronde selesai dalam beberapa detik simulasi. */
@@ -27,11 +28,11 @@ const fastConfig = (): BattleArenaConfig => {
   return config
 }
 
-const setup = (config: BattleArenaConfig = fastConfig()) => {
+const setup = (config: BattleArenaConfig = fastConfig(), roster?: PracticeFighters) => {
   const clock = createManualClock(0)
   const events: EngineEvent[] = []
   const warn = vi.fn()
-  const engine = new BattleArenaEngine({ clock, seed: 42, config, warn, onEvent: (e) => events.push(e) })
+  const engine = new BattleArenaEngine({ clock, seed: 42, config, warn, roster, onEvent: (e) => events.push(e) })
 
   const step = (times = 1): void => {
     for (let i = 0; i < times; i++) {
@@ -231,23 +232,27 @@ describe('BattleArenaEngine rounds', () => {
 
   /*
    * Siaran tidak boleh berhenti di layar kosong: match yang selesai wajar melewati Reset —
-   * arena dan skor benar-benar dibersihkan — lalu langsung membuka lobi match berikutnya.
+   * skor benar-benar dibersihkan — lalu langsung membuka lobi match berikutnya. Roster-nya
+   * IKUT: penonton yang sudah bermain tidak boleh diminta mengetik keyword lagi tiap match,
+   * dan karena kedua sisi sudah terisi, lobinya langsung maju ke countdown.
    */
-  it('loops from Result through Reset into a fresh lobby with an empty arena', () => {
+  it('loops from Result through Reset into a fresh lobby that keeps the roster', () => {
     const { clock, engine, stepUntil } = startBattle()
     stepUntil(() => engine.matchState === 'result')
+    const before = engine.getState().fighters.count
     clock.advance(RESULT_AUTO_ADVANCE_MS)
     engine.update()
-    expect(engine.matchState).toBe('waitingFighters')
-    expect(engine.getState().fighters.count).toBe(0)
+    expect(engine.matchState).toBe('countdown')
+    expect(engine.getState().fighters.count).toBe(before)
     expect(engine.getState().roundsWon).toEqual({ a: 0, b: 0 })
+    for (const f of engine.getState().fighters.list()) expect(f.kills).toBe(0)
   })
 
   it('lets the creator confirm the result without waiting, and loops the same way', () => {
     const { engine, stepUntil } = startBattle()
     stepUntil(() => engine.matchState === 'result')
     engine.confirmResult()
-    expect(engine.matchState).toBe('waitingFighters')
+    expect(engine.matchState).toBe('countdown')
   })
 
   /* Yang TIDAK ikut looping: creator yang mengakhiri sesi sendiri. */
@@ -405,6 +410,117 @@ describe('BattleArenaEngine and synthetic viewers', () => {
     clock.advance(TICK_MS)
     engine.update()
     expect(released).toEqual(['a'])
+  })
+})
+
+describe('kursi arena saat sisi mentok', () => {
+  beforeEach(() => resetEntityIds())
+
+  it('menerima viewer sungguhan meski bot practice sudah memenuhi cap', () => {
+    // Cap ≤ PRACTICE_MIN_PER_SIDE: bot mengisi sisi sampai penuh, dan `releaseOne` baru
+    // berjalan SESUDAH join berhasil — jadi tanpa pembebasan kursi di registry, bot tidak
+    // pernah sempat mundur dan penonton sungguhan tidak pernah bisa masuk.
+    const config = fastConfig()
+    config.gameplay = { ...config.gameplay, maxFightersPerSide: 3, practiceFighters: true, countdownDurationSec: 5 }
+    const { engine, join, step } = setup(config, new PracticeFighters())
+    engine.start()
+    step(2)
+    expect(engine.getState().fighters.countOnSide('a')).toBe(3)
+
+    join('penonton', config.sides.a.keyword)
+    step()
+    expect(engine.getState().fighters.get('tiktok:penonton')).toBeDefined()
+    // Satu bot saja yang mundur: registry membebaskan kursinya, jadi `releaseOne` tidak
+    // boleh melepas satu lagi di atasnya.
+    expect(engine.getState().fighters.countOnSide('a')).toBe(3)
+  })
+})
+
+describe('daftar tunggu dan komentar tertampung', () => {
+  beforeEach(() => resetEntityIds())
+
+  const keyword = (side: 'a' | 'b') => defaultConfig().sides[side].keyword
+
+  it('memasukkan yang antre begitu ada kursi, tanpa ia mengetik ulang', () => {
+    const config = fastConfig()
+    config.gameplay = { ...config.gameplay, maxFightersPerSide: 1 }
+    const { engine, join, step } = setup(config)
+    engine.start()
+    join('duluan', keyword('a'))
+    join('nunggu', keyword('a'))
+    step()
+    expect(engine.getState().fighters.get('tiktok:nunggu')).toBeUndefined()
+
+    // Kursi kosong tanpa satu pun komentar baru: yang duluan pindah ke sisi seberang.
+    join('duluan', keyword('b'))
+    step(2)
+    expect(engine.getState().fighters.get('tiktok:nunggu')?.side).toBe('a')
+  })
+
+  it('tidak mengantre dua kali dan memakai keyword terakhir yang diketik', () => {
+    const config = fastConfig()
+    config.gameplay = { ...config.gameplay, maxFightersPerSide: 1 }
+    const { engine, join, step } = setup(config)
+    engine.start()
+    join('duluan-a', keyword('a'))
+    join('duluan-b', keyword('b'))
+    join('nunggu', keyword('a'))
+    join('nunggu', keyword('a'))
+    join('nunggu', keyword('b'))
+    step()
+
+    // Kursi sisi b baru terbuka saat penghuninya mati — mayat pun disuruh mundur, aturan
+    // yang sama persis dengan yang dipakai komentar baru.
+    const duluanB = engine.getState().fighters.get('tiktok:duluan-b')
+    if (duluanB === undefined) throw new Error('expected a fighter')
+    duluanB.alive = false
+    step(2)
+    expect(engine.getState().fighters.get('tiktok:nunggu')?.side).toBe('b')
+  })
+
+  it('menerapkan komentar yang datang selama layar hasil di lobi berikutnya', () => {
+    const { clock, engine, join, stepUntil } = setup()
+    engine.start()
+    join('a1', keyword('a'))
+    join('b1', keyword('b'))
+    stepUntil(() => engine.matchState === 'result')
+
+    join('penonton-telat', keyword('a'))
+    expect(engine.getState().fighters.get('tiktok:penonton-telat')).toBeUndefined()
+
+    clock.advance(RESULT_AUTO_ADVANCE_MS)
+    engine.update()
+    engine.update()
+    expect(engine.getState().fighters.get('tiktok:penonton-telat')).toBeDefined()
+  })
+
+  it('tidak menampung gift maupun like — keduanya akan meledak di match yang salah', () => {
+    const { clock, engine, events, stepUntil } = setup()
+    engine.start()
+    engine.handleMessage(
+      createChatMessage({ id: 'a1', kind: 'textMessageEvent', platform: 'tiktok', username: 'a1', text: keyword('a') }),
+    )
+    engine.handleMessage(
+      createChatMessage({ id: 'b1', kind: 'textMessageEvent', platform: 'tiktok', username: 'b1', text: keyword('b') }),
+    )
+    stepUntil(() => engine.matchState === 'result')
+
+    engine.handleMessage(
+      createChatMessage({
+        id: 'gift-telat',
+        kind: 'giftEvent',
+        platform: 'tiktok',
+        username: 'a1',
+        giftName: 'Galaxy',
+        giftCount: 1,
+        giftCoins: 1000,
+      }),
+    )
+    const before = events.length
+    clock.advance(RESULT_AUTO_ADVANCE_MS)
+    engine.update()
+    engine.update()
+    expect(events.slice(before).some((e) => e.type === 'actionApplied')).toBe(false)
   })
 })
 

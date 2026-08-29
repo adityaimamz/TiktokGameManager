@@ -51,15 +51,16 @@ export interface ActionTriggersProps {
 const WHEN_ICON: Record<string, string> = { comment: '💬', like: '♡', gift: '🎁', follow: '＋' }
 
 /** Nilai `then.value` yang ditulis ulang validateConfig tidak boleh bisa diketik di sini. */
-const VALUE_OWNED_BY_CONFIG: readonly BattleActionType[] = ['grow', 'nuke', 'spawn']
+const VALUE_OWNED_BY_CONFIG: readonly BattleActionType[] = ['grow', 'spawn']
 
 /**
  * Editor rule penuh — tanpa state draft dan tanpa tombol Save.
  *
  * Setiap perubahan langsung masuk config dan mengalir lewat debounce `flushConfig` yang
  * sudah ada, sama seperti seluruh panel setelan. Yang TIDAK bisa diketik di sini adalah
- * angka yang ditulis ulang validateConfig — ambang like, HP per grow, damage nuke — karena
- * menulis ke sana berarti menulis ke tempat yang akan ditimpa saat config dimuat ulang.
+ * angka yang ditulis ulang validateConfig — ambang like dan HP per grow — karena menulis ke
+ * sana berarti menulis ke tempat yang akan ditimpa saat config dimuat ulang. Damage nuke BUKAN
+ * salah satunya: ia milik rule, jadi kolomnya menulis ke rule-nya sendiri.
  */
 export function ActionTriggers(props: ActionTriggersProps): ReactElement {
   const { catalog, reload } = useGiftCatalog(props.fetchImpl, props.roomId ?? null)
@@ -309,16 +310,8 @@ export function ActionTriggers(props: ActionTriggersProps): ReactElement {
                     <NumberField
                       label="Damage nuke"
                       field="gameplay.nuke.damage"
-                      value={props.config.gameplay.nuke.damage}
-                      onCommit={(damage) =>
-                        props.onConfig({
-                          ...props.config,
-                          gameplay: {
-                            ...props.config.gameplay,
-                            nuke: { ...props.config.gameplay.nuke, damage },
-                          },
-                        })
-                      }
+                      value={card.then.value}
+                      onCommit={(value) => props.onConfig(withThen(props.config, card.id, { value }))}
                     />
                   </div>
                 ) : VALUE_OWNED_BY_CONFIG.includes(card.then.actionType) ? null : (

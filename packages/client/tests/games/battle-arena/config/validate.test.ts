@@ -286,21 +286,29 @@ describe('config nuke', () => {
     expect(config.gameplay.nuke.type).toBe('missileRain')
   })
 
-  it('menulis ulang nilai rule nuke menjadi gameplay.nuke.damage', () => {
+  const nukeRule = (id: string, value: unknown) => ({
+    id,
+    label: 'Nuke',
+    enabled: true,
+    when: { kind: 'gift', giftNames: ['Galaxy'], minCount: 1 },
+    then: { actionType: 'nuke', target: 'sideB', value },
+    legend: { show: true, caption: 'NUKE', icon: 'nuke' },
+  })
+
+  it('menyimpan damage nuke per rule, tidak menyeragamkannya', () => {
     const config = validateConfig({
       gameplay: { nuke: { type: 'bomb', damage: 120, durationMs: 2000 } },
-      triggers: [
-        {
-          id: 'gift-nuke',
-          label: 'Nuke',
-          enabled: true,
-          when: { kind: 'gift', giftNames: ['Galaxy'], minCount: 1 },
-          then: { actionType: 'nuke', target: 'sideB', value: 7 },
-          legend: { show: true, caption: 'NUKE', icon: 'nuke' },
-        },
-      ],
+      triggers: [nukeRule('gift-nuke', 60), nukeRule('gift-nuke-besar', 400)],
     })
-    expect(config.triggers[0]?.then.value).toBe(120)
+    expect(config.triggers.map((r) => r.then.value)).toEqual([60, 400])
+  })
+
+  it('memakai gameplay.nuke.damage sebagai bawaan saat nilai rule di luar akal', () => {
+    const config = validateConfig({
+      gameplay: { nuke: { type: 'bomb', damage: 120, durationMs: 2000 } },
+      triggers: [nukeRule('gift-nuke', 7), nukeRule('gift-nuke-kosong', undefined)],
+    })
+    expect(config.triggers.map((r) => r.then.value)).toEqual([120, 120])
   })
 })
 

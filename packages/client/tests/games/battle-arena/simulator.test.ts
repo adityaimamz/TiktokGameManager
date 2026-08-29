@@ -227,7 +227,7 @@ describe('BattleArenaSimulator rejoins', () => {
   it('sends a viewer back in after two to ten seconds', () => {
     const { messages, simulator, tick, connect } = setup()
     connect()
-    simulator.scheduleRejoin('ghost')
+    simulator.scheduleRejoin('ghost', 'a')
 
     // Arena sudah penuh, jadi satu-satunya pesan yang mungkin muncul adalah rejoin.
     tick(REJOIN_DELAY_MIN_MS - FRAME_MS, 10)
@@ -239,10 +239,23 @@ describe('BattleArenaSimulator rejoins', () => {
     expect(messages[0]?.kind).toBe('textMessageEvent')
   })
 
+  it('menyebut sisi yang sedang ditempati, bukan undian baru', () => {
+    // Undian sisi separuh waktunya menyebut sisi lawan, dan `join` menjawabnya `sideFull`
+    // begitu sisi seberang penuh — fighter yang mati lalu tidak pernah hidup lagi.
+    for (const side of ['a', 'b'] as const) {
+      const { messages, simulator, tick, connect, config } = setup()
+      connect()
+      for (let i = 0; i < 6; i++) simulator.scheduleRejoin(`ghost${i}`, side)
+      tick(REJOIN_DELAY_MAX_MS, 10)
+      expect(messages).toHaveLength(6)
+      for (const m of messages) expect(m.text).toBe(config.sides[side].keyword)
+    }
+  })
+
   it('rejoins each viewer only once per death', () => {
     const { messages, simulator, tick, connect } = setup()
     connect()
-    simulator.scheduleRejoin('ghost')
+    simulator.scheduleRejoin('ghost', 'a')
     tick(REJOIN_DELAY_MAX_MS, 10)
     tick(REJOIN_DELAY_MAX_MS, 10)
     expect(messages.filter((m) => m.username === 'ghost')).toHaveLength(1)

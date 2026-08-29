@@ -237,7 +237,7 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
       const analyticsEvent = toAnalyticsEvent(event)
       if (analyticsEvent !== null) analytics.log(analyticsEvent.type, analyticsEvent.payload)
       if (event.type === 'fighterDied' && event.fighter.platform === 'demo') {
-        simulator.scheduleRejoin(event.fighter.username)
+        simulator.scheduleRejoin(event.fighter.username, event.fighter.side)
       }
       hooks.onEvent(event)
     },

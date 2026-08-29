@@ -356,7 +356,10 @@ export function applyAction(action: BattleAction, deps: CombatDeps): void {
         // Config tetap otoritas runtime: jenis dibaca lewat ruleId tiap kali aksi diterapkan,
         // jadi creator yang menggantinya di tengah sesi langsung berlaku di gift berikutnya.
         nukeType: rule?.then.nukeType ?? deps.config.gameplay.nuke.type,
-        damage: deps.config.gameplay.nuke.damage,
+        // Milik rule, bukan satu angka global: dua trigger ultimate boleh berbeda kerasnya.
+        // `validateRule` sudah menjepitnya ke rentang yang sama, jadi fallback ini hanya
+        // melayani aksi nuke tanpa rule — legend yang diklik creator.
+        damage: rule?.then.value ?? deps.config.gameplay.nuke.damage,
         giftCoins: action.giftCoins,
         queuedAtTick: deps.state.tick,
         originX: origin.position.x,

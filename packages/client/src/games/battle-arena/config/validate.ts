@@ -163,13 +163,18 @@ function validateRule(
     then: {
       actionType,
       target: oneOf(thenRaw.target, TARGET_KINDS, 'sender'),
-      // D3 diperluas: nilai Grow mengikuti gameplay.hpGainedPerGrow, nilai Nuke mengikuti
-      // gameplay.nuke.damage. Legend karena itu tidak bisa memajang angka yang tidak berlaku.
+      // D3: nilai Grow mengikuti gameplay.hpGainedPerGrow — satu-satunya otoritas runtime-nya
+      // ada di config, jadi legend tidak bisa memajang angka yang tidak berlaku.
+      //
+      // Damage nuke TIDAK begitu: ia milik rule, supaya dua trigger ultimate bisa memukul
+      // sekeras-kerasnya masing-masing. `gameplay.nuke.damage` tinggal jadi angka bawaan —
+      // dipakai saat rule belum punya nilai yang masuk akal, dan saat aksi nuke datang tanpa
+      // rule sama sekali (legend yang diklik creator).
       value:
         actionType === 'grow'
           ? hpGainedPerGrow
           : actionType === 'nuke'
-            ? nukeDamage
+            ? num(thenRaw.value, NUMERIC_RANGES['gameplay.nuke.damage'], nukeDamage)
             : typeof thenRaw.value === 'number' && Number.isFinite(thenRaw.value)
               ? thenRaw.value
               : 0,

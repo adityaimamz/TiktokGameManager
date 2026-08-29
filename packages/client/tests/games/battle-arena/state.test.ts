@@ -98,7 +98,7 @@ describe('resetMatch', () => {
     state.matchWinner = 'a'
     state.tick = 900
 
-    resetMatch(state)
+    resetMatch(state, gameplay)
 
     expect(state.fighters.count).toBe(0)
     expect(state.roundScore).toEqual({ a: 0, b: 0 })
@@ -109,5 +109,30 @@ describe('resetMatch', () => {
     expect(state.tick).toBe(0)
     expect(state.projectiles.activeCount).toBe(0)
     expect(state.effects.activeCount).toBe(0)
+  })
+
+  it('menahan roster tapi menolkan statistiknya saat keepRoster', () => {
+    const state = makeState()
+    const f = state.fighters.join({ platform: 'tiktok', username: 'a1', avatarUrl: null }, 'a', gameplay)
+      .fighter
+    if (f === null) throw new Error('expected a fighter')
+    f.kills = 5
+    f.deaths = 2
+    f.giftCoins = 900
+    f.maxHp = 700
+    f.alive = false
+    state.roundsWon.a = 2
+
+    resetMatch(state, gameplay, true)
+
+    expect(state.fighters.count).toBe(1)
+    const kept = state.fighters.get('tiktok:a1')
+    expect(kept?.kills).toBe(0)
+    expect(kept?.deaths).toBe(0)
+    expect(kept?.giftCoins).toBe(0)
+    expect(kept?.maxHp).toBe(gameplay.baseHp)
+    // Lobi berikutnya menghitung yang HIDUP; roster yang mati semua tidak akan maju.
+    expect(kept?.alive).toBe(true)
+    expect(state.roundsWon).toEqual({ a: 0, b: 0 })
   })
 })

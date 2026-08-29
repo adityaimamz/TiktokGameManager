@@ -101,12 +101,37 @@ describe('FighterRegistry.join', () => {
     expect(registry.countOnSide('a')).toBe(2)
   })
 
-  it('counts dead fighters against the side cap', () => {
+  it('menyuruh mayat mundur agar penonton baru tetap dapat kursi', () => {
+    // Mayat tetap terdaftar sepanjang ronde (keputusan D1). Tanpa aturan ini sisi yang baru
+    // dibantai menolak SETIAP penonton baru sampai ronde berakhir — komentar deras masuk dan
+    // tidak satu blob pun muncul.
     const registry = makeRegistry()
     const config = gameplay({ maxFightersPerSide: 1 })
     const f = registry.join(viewer('a1'), 'a', config).fighter
     if (f === null) throw new Error('expected a fighter')
     f.alive = false
+    f.kills = 4
+
+    expect(registry.join(viewer('a2'), 'a', config).outcome).toBe('joined')
+    expect(registry.get('tiktok:a1')).toBeUndefined()
+    expect(registry.countOnSide('a')).toBe(1)
+    // Rekornya ikut pulang begitu ia mengetik keyword lagi.
+    registry.remove('tiktok:a2')
+    expect(registry.join(viewer('a1'), 'a', config).fighter?.kills).toBe(4)
+  })
+
+  it('menyuruh bot practice mundur saat tidak ada mayat', () => {
+    const registry = makeRegistry()
+    const config = gameplay({ maxFightersPerSide: 1 })
+    registry.join({ platform: 'practice', username: 'bot1', avatarUrl: null }, 'a', config)
+    expect(registry.join(viewer('a1'), 'a', config).outcome).toBe('joined')
+    expect(registry.get('practice:bot1')).toBeUndefined()
+  })
+
+  it('menolak saat kursinya dipegang viewer sungguhan yang masih hidup', () => {
+    const registry = makeRegistry()
+    const config = gameplay({ maxFightersPerSide: 1 })
+    registry.join(viewer('a1'), 'a', config)
     expect(registry.join(viewer('a2'), 'a', config).outcome).toBe('sideFull')
   })
 

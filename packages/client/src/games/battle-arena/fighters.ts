@@ -143,7 +143,7 @@ export class FighterRegistry {
     if (existing !== undefined) {
       // Kapasitas diperiksa SEBELUM melepas fighter lama: pindah ke sisi yang penuh
       // tidak boleh berujung viewer kehilangan fighter di kedua sisi.
-      if (this.countOnSide(side) >= gameplay.maxFightersPerSide) return { outcome: 'sideFull', fighter: null }
+      if (!this.hasSeat(side, gameplay)) return { outcome: 'sideFull', fighter: null }
       const carried: FighterStats = {
         kills: existing.kills,
         deaths: existing.deaths,
@@ -153,9 +153,56 @@ export class FighterRegistry {
       return { outcome: 'switched', fighter: this.spawn(actor, side, gameplay, carried) }
     }
 
-    if (this.countOnSide(side) >= gameplay.maxFightersPerSide) return { outcome: 'sideFull', fighter: null }
+    if (!this.hasSeat(side, gameplay)) return { outcome: 'sideFull', fighter: null }
     const carried = this.stats.get(key) ?? { kills: 0, deaths: 0, giftCoins: 0 }
     return { outcome: 'joined', fighter: this.spawn(actor, side, gameplay, carried) }
+  }
+
+  /**
+   * Apakah `side` punya kursi untuk satu pendatang baru — membebaskan satu bila perlu.
+   *
+   * Kursi dipegang REGISTRASI, bukan blob di layar, dan itu yang membuatnya bisa habis
+   * tanpa terlihat habis: fighter mati tetap terdaftar sepanjang ronde (keputusan D1),
+   * jadi sisi yang baru dibantai menolak SETIAP penonton baru sampai ronde berakhir —
+   * komentar deras masuk dan tidak satu blob pun muncul. Bot practice memegang kursi
+   * dengan cara lain: pada cap kecil ia mengisinya sampai penuh, dan `releaseOne` baru
+   * berjalan SESUDAH join berhasil, jadi ia tidak pernah sempat mundur.
+   *
+   * Yang mundur, berurutan: mayat yang paling lama terdaftar, lalu bot practice — yang
+   * memang ada untuk memberi tempat pada viewer sungguhan. Statistiknya tetap disimpan
+   * `remove`, jadi keduanya kembali membawa rekornya begitu mengetik keyword lagi.
+   *
+   * Batas registrasi karena itu tidak pernah dilewati, dan `restoreForNewRound` tetap
+   * tidak bisa menghidupkan lebih banyak fighter daripada yang muat di satu sisi.
+   */
+  private hasSeat(side: SideId, gameplay: GameplayConfig): boolean {
+    if (this.countOnSide(side) < gameplay.maxFightersPerSide) return true
+    const leaving = this.yieldingSeat(side)
+    return leaving === undefined ? false : this.remove(leaving.key)
+  }
+
+  /**
+   * Apakah `side` bisa menerima satu pendatang — TANPA mengubah apa pun.
+   *
+   * Dipakai daftar tunggu engine. Ia harus menjawab dengan aturan yang sama persis dengan
+   * `join`, kalau tidak yang antre bisa tertahan di sisi yang sebenarnya masih mau menerima
+   * komentar baru — dan bedanya tidak akan terlihat sampai ada mayat di sana.
+   */
+  canSeat(side: SideId, gameplay: GameplayConfig): boolean {
+    return this.countOnSide(side) < gameplay.maxFightersPerSide || this.yieldingSeat(side) !== undefined
+  }
+
+  /** Penghuni yang boleh disuruh mundur: mayat paling lama, lalu bot practice. */
+  private yieldingSeat(side: SideId): Fighter | undefined {
+    const seated = [...this.byKey.values()].filter((f) => f.side === side)
+    const dead = seated.filter((f) => !f.alive)
+    // Literal, bukan PRACTICE_PLATFORM: mengimpornya dari practice-fighters.ts menutup
+    // lingkaran impor, dan depcruise menolaknya.
+    const yielding = dead.length > 0 ? dead : seated.filter((f) => f.platform === 'practice')
+
+    // Paling lama terdaftar yang mundur; slotIndex memutus seri supaya urutannya tidak
+    // bergantung pada sejarah penyisipan Map.
+    return yielding.sort((a, b) => a.joinedAtMs - b.joinedAtMs || a.slotIndex - b.slotIndex)[0]
   }
 
   /**
@@ -249,6 +296,38 @@ export class FighterRegistry {
     if (fighter !== undefined)
       return { kills: fighter.kills, deaths: fighter.deaths, giftCoins: fighter.giftCoins }
     return { ...(this.stats.get(key) ?? { kills: 0, deaths: 0, giftCoins: 0 }) }
+  }
+
+  /**
+   * Match baru dengan roster yang sama: keanggotaan bertahan, sisanya kembali ke nol.
+   *
+   * Dipakai saat match selesai lalu melingkar ke lobi berikutnya. Yang dinolkan adalah
+   * segala yang berlaku PER MATCH — kill, death, koin gift, dan pertumbuhan HP dari like —
+   * karena papan skor yang mewarisi match lalu berbohong, dan maxHp yang menumpuk lintas
+   * match menggelembung tanpa batas. `stats` ikut dihapus supaya viewer yang keluar-masuk
+   * tidak memanggil pulang rekor match lalu.
+   *
+   * Semua dihidupkan lagi: `hasFightersOnBothSides` menghitung yang HIDUP, jadi roster yang
+   * mati semua tidak akan pernah memajukan lobi ke countdown. Posisinya belum diurus di
+   * sini — `startNewRound` menyebarkan ulang semua orang sesaat sebelum ronde pertama.
+   */
+  startNewMatch(gameplay: GameplayConfig): void {
+    for (const fighter of this.byKey.values()) {
+      fighter.kills = 0
+      fighter.deaths = 0
+      fighter.giftCoins = 0
+      fighter.likeAccumulator = 0
+      fighter.hp = gameplay.baseHp
+      fighter.maxHp = gameplay.baseHp
+      fighter.damage = gameplay.baseDamage
+      fighter.attackIntervalMs = gameplay.attackIntervalSec * 1000
+      fighter.alive = true
+      fighter.targetKey = null
+      fighter.velocity.x = 0
+      fighter.velocity.y = 0
+      this.staggerFirstShot(fighter)
+    }
+    this.stats.clear()
   }
 
   clear(): void {

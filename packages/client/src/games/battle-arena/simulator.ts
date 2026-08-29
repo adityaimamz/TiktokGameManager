@@ -4,6 +4,7 @@ import type { Clock } from '../../framework/clock.js'
 import type { Rng } from '../../framework/rng.js'
 import type { ChatSource } from '../../platform/chat/source.js'
 import type { BattleArenaConfig } from './config/index.js'
+import type { SideId } from './types.js'
 import { viewerName } from './usernames.js'
 
 /**
@@ -99,6 +100,8 @@ export interface SimulatorOptions {
 
 interface PendingRejoin {
   username: string
+  /** Sisi yang SUDAH ditempati fighter-nya, bukan undian baru. */
+  side: SideId
   dueAtMs: number
 }
 
@@ -147,10 +150,18 @@ export class BattleArenaSimulator implements ChatSource {
     this.rejoins = []
   }
 
-  /** Menjadwalkan viewer sintetis yang mati untuk masuk kembali (Req 18 AC6). */
-  scheduleRejoin(username: string): void {
+  /**
+   * Menjadwalkan viewer sintetis yang mati untuk masuk kembali (Req 18 AC6).
+   *
+   * Sisinya WAJIB sisi yang sedang ia tempati. Undian sisi baru — yang dipakai join
+   * pertama — separuh waktunya menyebut sisi lawan, dan `FighterRegistry.join` menjawab
+   * itu dengan `sideFull` begitu sisi seberang penuh (registrasi ikut menghitung yang
+   * mati, dan pada arena penuh itu selalu terjadi). Rejoin hanya dijadwalkan sekali per
+   * kematian, jadi yang tertolak mati selamanya.
+   */
+  scheduleRejoin(username: string, side: SideId): void {
     const delay = this.opts.rng.range(REJOIN_DELAY_MIN_MS, REJOIN_DELAY_MAX_MS)
-    this.rejoins.push({ username, dueAtMs: this.opts.clock.now() + delay })
+    this.rejoins.push({ username, side, dueAtMs: this.opts.clock.now() + delay })
   }
 
   /**
@@ -246,11 +257,11 @@ export class BattleArenaSimulator implements ChatSource {
     const due = this.rejoins.filter((entry) => entry.dueAtMs <= now)
     if (due.length === 0) return
     this.rejoins = this.rejoins.filter((entry) => entry.dueAtMs > now)
-    for (const entry of due) this.send(this.joinMessage(entry.username, config))
+    for (const entry of due) this.send(this.joinMessage(entry.username, config, entry.side))
   }
 
-  private joinMessage(username: string, config: BattleArenaConfig): ChatMessage {
-    const side = this.opts.rng.next() < 0.5 ? 'a' : 'b'
+  private joinMessage(username: string, config: BattleArenaConfig, forced?: SideId): ChatMessage {
+    const side = forced ?? (this.opts.rng.next() < 0.5 ? 'a' : 'b')
     return createChatMessage({
       id: this.nextId(),
       kind: 'textMessageEvent',
