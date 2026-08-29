@@ -12,7 +12,7 @@ afterEach(() => {
 })
 
 /** Dashboard dimuat malas, jadi chunk-nya ditransformasi Vite saat assertion berjalan. */
-const DASHBOARD = { timeout: 5000 }
+const DASHBOARD = { timeout: 30000 }
 
 describe('App', () => {
   it('renders the overlay stage on /overlay', () => {
@@ -31,7 +31,7 @@ describe('App', () => {
 
     expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
     expect(screen.queryByTestId('column-control')).toBeNull()
-  })
+  }, 35000)
 
   it('opens the control room of the game the path names', async () => {
     render(<App pathname="/game/battle-arena" search="" />)
