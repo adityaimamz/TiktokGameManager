@@ -387,6 +387,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
             <Soundboard
               cues={model.media.cues}
               musicVolume={model.media.musicVolume}
+              playingMusicId={model.playingMusicId}
               onCues={(cues) => model.setMedia({ ...model.media, cues })}
               onFire={model.actions.fireCue}
               onMusicVolume={model.actions.setMusicVolume}

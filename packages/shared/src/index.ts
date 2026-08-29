@@ -65,3 +65,5 @@ export type {
   PlayerStats,
   ServerEvent,
 } from './api.js'
+
+export { MAX_UPLOAD_BYTES, MAX_UPLOAD_LIMIT } from './upload.js'

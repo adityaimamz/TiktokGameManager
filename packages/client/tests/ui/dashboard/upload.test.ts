@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { MAX_UPLOAD_BYTES } from '@lga/shared'
 import { setUploadErrorHandler, uploadFile } from '../../../src/ui/dashboard/upload.js'
 
 const file = (): File =>
@@ -30,6 +31,19 @@ describe('uploadFile', () => {
     expect(url).toBeNull()
   })
 
+  it('menolak berkas kebesaran TANPA mengunggahnya sama sekali', async () => {
+    // Yang dibeli penjaga ini bukan pesan galat: ia menghemat belasan menit unggahan yang
+    // sudah pasti dijawab 413.
+    const fetchImpl = vi.fn()
+    const big = new File([], 'film.mp4', { type: 'video/mp4' })
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+
+    const url = await uploadFile(big, fetchImpl as unknown as typeof fetch)
+
+    expect(url).toBeNull()
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('mengembalikan null saat jaringan mati', async () => {
     const url = await uploadFile(file(), (async () => {
       throw new Error('offline')
@@ -51,6 +65,31 @@ describe('setUploadErrorHandler', () => {
 
     setUploadErrorHandler(null)
     expect(seen).toHaveLength(1)
+  })
+
+  it('menyebut UKURAN saat berkasnya kebesaran, bukan kalimat umum', async () => {
+    const seen: string[] = []
+    setUploadErrorHandler((message) => seen.push(message))
+    const big = new File([], 'film.mp4', { type: 'video/mp4' })
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+
+    await uploadFile(big, (async () => ({ ok: true, json: async () => ({}) })) as unknown as typeof fetch)
+
+    setUploadErrorHandler(null)
+    expect(seen[0]).toContain('50 MB')
+  })
+
+  it('menyebut UKURAN saat server menjawab 413', async () => {
+    const seen: string[] = []
+    setUploadErrorHandler((message) => seen.push(message))
+
+    await uploadFile(
+      file(),
+      (async () => ({ ok: false, status: 413, json: async () => ({}) })) as unknown as typeof fetch,
+    )
+
+    setUploadErrorHandler(null)
+    expect(seen[0]).toContain('50 MB')
   })
 
   it('diam saat unggahan berhasil', async () => {

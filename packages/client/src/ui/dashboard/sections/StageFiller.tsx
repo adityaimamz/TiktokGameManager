@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import type { ReactElement } from 'react'
+import { MAX_UPLOAD_BYTES } from '@lga/shared'
 import { FILLER_ITEMS_MAX } from '../../../games/battle-arena/config/index.js'
 import type {
   FillerConfig,
@@ -77,16 +78,27 @@ export function StageFiller(props: StageFillerProps): ReactElement {
     append({ url, kind: kindFromUrl(url) })
   }
 
+  const full = filler.items.length >= FILLER_ITEMS_MAX
+
   return (
     <section className="flex min-h-0 flex-col">
+      {/*
+        * Hitungan di KEPALA panel, bukan sebagai galat setelah item ke-9 ditolak.
+        *
+        * Batas yang hanya muncul sebagai pesan kegagalan mengajarkannya dengan cara yang
+        * paling mahal; angka yang selalu terlihat membuatnya tidak pernah jadi kejutan.
+        */}
       <div className="flex items-center justify-between gap-3 px-3.5 pt-3">
         <span className="panel-title panel-title-sub">Media band bawah</span>
+        <span className="text-[10px] tabular-nums text-muted" data-testid="filler-count">
+          {filler.items.length}/{FILLER_ITEMS_MAX}
+        </span>
       </div>
 
-      <div className="flex flex-col gap-2 px-3.5 py-3">
+      <div className="flex flex-col gap-2.5 px-3.5 py-3">
         <Toggle
           label="Aktif"
-          hint="Mengisi band bawah dengan klip yang berputar."
+          hint="Mengisi separuh kiri band bawah dengan klip yang berputar."
           checked={filler.enabled}
           onChange={(enabled) => onFiller({ ...filler, enabled })}
         />
@@ -96,16 +108,23 @@ export function StageFiller(props: StageFillerProps): ReactElement {
             Belum ada isi. Unggah klip atau tempel link berkasnya.
           </p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-1 rounded-lg border border-edge bg-ink/40 p-1.5">
             {filler.items.map((item, position) => (
-              <li className="flex items-center gap-1" data-testid="filler-item" key={item.url}>
-                <span className="min-w-0 flex-1 truncate text-xs text-signal">
-                  {item.kind === 'video' ? '▶ ' : '🖼 '}
+              <li
+                className="flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-edge/40"
+                data-testid="filler-item"
+                key={item.url}
+              >
+                <span className="shrink-0 text-[10px] tabular-nums text-muted">
+                  {position + 1}
+                </span>
+                <span className="shrink-0 text-xs">{item.kind === 'video' ? '▶' : '🖼'}</span>
+                <span className="min-w-0 flex-1 truncate text-xs text-signal" title={item.url}>
                   {labelFromUrl(item.url)}
                 </span>
                 <button
                   aria-label={`Hapus ${item.url}`}
-                  className="panel-action"
+                  className="panel-action shrink-0"
                   onClick={() =>
                     onFiller({
                       ...filler,
@@ -121,8 +140,17 @@ export function StageFiller(props: StageFillerProps): ReactElement {
           </ul>
         )}
 
-        <div className="flex items-center gap-2">
-          <label className="btn cursor-pointer" htmlFor={inputId}>
+        {/*
+          * Unggah dan tempel-link dalam SATU baris.
+          *
+          * Keduanya menjawab pertanyaan yang sama — "dari mana klipnya" — dan dua baris
+          * terpisah membuat panel ini setinggi kartu Game settings untuk empat kontrol.
+          */}
+        <div className="flex items-center gap-1.5">
+          <label
+            className={`btn shrink-0 whitespace-nowrap ${full ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
+            htmlFor={inputId}
+          >
             {busy ? 'Mengunggah…' : 'Unggah'}
           </label>
           <input
@@ -130,24 +158,34 @@ export function StageFiller(props: StageFillerProps): ReactElement {
             aria-label="Unggah media band bawah"
             className="hidden"
             data-testid="filler-file"
+            disabled={full}
             id={inputId}
             onChange={(event) => void addFile(event.target.files?.[0])}
             type="file"
           />
-        </div>
-
-        <div className="flex items-center gap-2">
           <input
             aria-label="Link berkas media"
             className="min-w-0 flex-1 rounded border border-edge bg-ink px-2 py-1 text-xs text-signal"
             data-testid="filler-link"
             onChange={(event) => setLink(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter menambahkan: mengetik link lalu harus memindahkan tangan ke mouse untuk
+              // satu tombol di sebelahnya adalah gesekan yang tidak dibeli apa pun.
+              if (event.key === 'Enter') addLink()
+            }}
             placeholder="https://…/klip.mp4"
             type="text"
             value={link}
           />
-          <button className="btn" data-testid="filler-link-add" onClick={addLink} type="button">
-            Tambah
+          <button
+            aria-label="Tambah link"
+            className="btn shrink-0"
+            data-testid="filler-link-add"
+            disabled={full}
+            onClick={addLink}
+            type="button"
+          >
+            +
           </button>
         </div>
 
@@ -159,8 +197,8 @@ export function StageFiller(props: StageFillerProps): ReactElement {
         />
 
         <p className="note" data-testid="filler-hint">
-          Link YouTube tidak bisa dipakai — yang dibutuhkan berkas video (.mp4/.webm), bukan
-          halaman. Unggah klip bebas-lisensi, tanpa trek audio.
+          Berkas video (.mp4/.webm) maks {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB — link
+          YouTube bukan berkas dan tidak bisa dipakai. Unggah klip bebas-lisensi, tanpa trek audio.
         </p>
 
         {error === null ? null : (

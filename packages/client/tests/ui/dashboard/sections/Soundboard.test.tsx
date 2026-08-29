@@ -14,6 +14,14 @@ const sound: CatalogEntry = {
   volume: 1,
 }
 
+const track = (n: number): CatalogEntry => ({
+  id: `music-${n}`,
+  kind: 'music',
+  label: `trek ${n}`,
+  url: `/api/uploads/m${n}.mp3`,
+  volume: 1,
+})
+
 /**
  * Mock dikembalikan terpisah dari props, bukan lewat objek yang di-spread.
  *
@@ -29,6 +37,7 @@ const panel = (over: Partial<Parameters<typeof Soundboard>[0]> = {}) => {
     <Soundboard
       cues={[sound]}
       musicVolume={0.8}
+      playingMusicId={null}
       onCues={onCues}
       onFire={onFire}
       onMusicVolume={onMusicVolume}
@@ -95,26 +104,65 @@ describe('Soundboard', () => {
     expect(screen.getByTestId('soundboard-empty')).toBeTruthy()
   })
 
-  it('hanya tab Music yang punya tombol stop', () => {
-    const props = panel({ cues: [] })
+  it('hanya tab Music yang punya pemutar', () => {
+    const props = panel({ cues: [sound, track(1)], playingMusicId: 'music-1' })
 
-    expect(screen.queryByRole('button', { name: 'Stop musik' })).toBeNull()
+    expect(screen.queryByTestId('music-toggle')).toBeNull()
     act(() => screen.getByRole('button', { name: 'Music' }).click())
-    act(() => screen.getByRole('button', { name: 'Stop musik' }).click())
+    act(() => screen.getByTestId('music-toggle').click())
 
     expect(props.onStopMusic).toHaveBeenCalledTimes(1)
   })
 
+  it('menyembunyikan pemutar selama belum ada satu pun trek', () => {
+    // Slider yang tidak mengatur apa pun dan tombol yang tidak menghentikan apa pun adalah
+    // dua kontrol yang berbohong; keduanya baru muncul begitu ada yang bisa diputar.
+    panel({ cues: [sound] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }))
+    expect(screen.queryByTestId('music-toggle')).toBeNull()
+    expect(screen.queryByLabelText('Volume musik')).toBeNull()
+  })
+
   it('menampilkan slider volume hanya di tab Music', () => {
-    panel()
+    panel({ cues: [sound, track(1)] })
 
     expect(screen.queryByLabelText('Volume musik')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Music' }))
     expect(screen.getByLabelText('Volume musik')).toBeDefined()
   })
 
+  it('menyebut trek yang sedang berputar, dan memutar trek pertama saat sunyi', () => {
+    const props = panel({ cues: [track(1), track(2)], playingMusicId: null })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }))
+    expect(screen.getByTestId('music-now-playing').textContent).toContain('Tidak ada')
+    act(() => screen.getByTestId('music-toggle').click())
+
+    expect(props.onFire).toHaveBeenCalledWith(track(1))
+  })
+
+  it('melingkar di ujung daftar: ⏭ dari trek terakhir kembali ke yang pertama', () => {
+    const props = panel({ cues: [track(1), track(2)], playingMusicId: 'music-2' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }))
+    act(() => screen.getByTestId('music-next').click())
+
+    expect(props.onFire).toHaveBeenCalledWith(track(1))
+  })
+
+  it('mematikan ⏮/⏭ saat trek musiknya cuma satu', () => {
+    // Melingkar ke diri sendiri akan MEMULAI ULANG trek dari nol — kanal musik tidak
+    // men-cache elemennya — jadi tombol mati lebih jujur daripada yang diam-diam mengulang.
+    panel({ cues: [track(1)], playingMusicId: 'music-1' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }))
+    expect((screen.getByTestId('music-prev') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByTestId('music-next') as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('meneruskan nilai slider apa adanya', () => {
-    const props = panel()
+    const props = panel({ cues: [sound, track(1)] })
 
     fireEvent.click(screen.getByRole('button', { name: 'Music' }))
     fireEvent.change(screen.getByLabelText('Volume musik'), { target: { value: '0.3' } })

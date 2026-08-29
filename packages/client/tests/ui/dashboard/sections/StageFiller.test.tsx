@@ -72,7 +72,10 @@ describe('StageFiller', () => {
     expect(onFiller.mock.calls[0]?.[0].items).toStrictEqual([{ url: '/b.png', kind: 'image' }])
   })
 
-  it('menolak item kesembilan', () => {
+  it('menutup jalan masuk item kesembilan, dan menunjukkan batasnya sebelum ditabrak', () => {
+    // Batas yang baru muncul sebagai galat SESUDAH creator memilih berkas mengajarkannya
+    // dengan cara paling mahal: pemilih berkas terbuka, satu klip dipilih, lalu ditolak.
+    // Hitungan di kepala panel plus tombol mati mengatakannya sebelum itu terjadi.
     const onFiller = vi.fn()
     const filler = {
       ...base,
@@ -84,7 +87,9 @@ describe('StageFiller', () => {
     fireEvent.click(screen.getByTestId('filler-link-add'))
 
     expect(onFiller).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('8')
+    expect((screen.getByTestId('filler-link-add') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByTestId('filler-file') as HTMLInputElement).disabled).toBe(true)
+    expect(screen.getByTestId('filler-count').textContent).toBe('8/8')
   })
 
   it('mengatakan link YouTube tidak bisa dipakai', () => {

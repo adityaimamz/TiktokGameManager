@@ -112,6 +112,13 @@ export interface DashboardModel {
   /** Katalog soundboard + rule alert, dari localStorage. */
   media: MediaState
   setMedia: (next: MediaState) => void
+  /**
+   * Id trek musik yang sedang berputar, atau null saat sunyi.
+   *
+   * Id, bukan entri: katalognya sudah ada di `media.cues`, dan dua salinan entri yang sama
+   * pasti berbeda begitu creator mengganti labelnya.
+   */
+  playingMusicId: string | null
   /** Banner yang sedang tampil di preview. Overlay punya antreannya sendiri. */
   banner: BannerItem | null
   notifications: NotificationEntry[]
@@ -241,6 +248,18 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
    * BERIKUTNYA — yang tidak terasa seperti volume sama sekali.
    */
   const playingMusic = useRef<CatalogEntry | null>(null)
+  /*
+   * Id-nya juga sebagai STATE, karena ref tidak pernah merender ulang apa pun.
+   *
+   * Ref-nya tetap: `setMusicVolume` membacanya di dalam callback, tempat state yang baru
+   * di-set masih memegang nilai lama. Yang disimpan di state cuma id — entri utuhnya sudah
+   * ada di katalog, dan menyalinnya ke dua tempat berarti dua salinan yang bisa berbeda.
+   */
+  const [playingMusicId, setPlayingMusicId] = useState<string | null>(null)
+  const rememberMusic = (entry: CatalogEntry | null): void => {
+    playingMusic.current = entry
+    setPlayingMusicId(entry?.id ?? null)
+  }
 
   /**
    * Cue media: disiarkan ke overlay DAN dibunyikan di tab ini.
@@ -606,11 +625,11 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
         // ini, supaya slider berlaku sejak tekan pertama dan bukan setelah digeser.
         const sent =
           entry.kind === 'music' ? { ...entry, volume: mediaRef.current.musicVolume } : entry
-        if (entry.kind === 'music') playingMusic.current = sent
+        if (entry.kind === 'music') rememberMusic(sent)
         publishCue(cueFromEntry(sent, `cue-${seq.current++}`))
       },
       stopMusic: () => {
-        playingMusic.current = null
+        rememberMusic(null)
         publishCue(stopMusicCue(`cue-${seq.current++}`))
       },
       setMusicVolume: (volume) => {
@@ -620,7 +639,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
         // Cue untuk url yang SAMA: `audio-channels` menggeser volumenya di tempat, bukan
         // memulai ulang treknya dari detik nol.
         const next = { ...playing, volume }
-        playingMusic.current = next
+        rememberMusic(next)
         publishCue(cueFromEntry(next, `cue-${seq.current++}`))
       },
       readNotifications: () => setNotifications(markAllRead),
@@ -660,6 +679,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     topKillers,
     media,
     setMedia,
+    playingMusicId,
     banner: banners.current,
     notifications,
     voices,

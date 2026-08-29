@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Router, raw } from 'express'
+import { MAX_UPLOAD_LIMIT } from '@lga/shared'
 import { log } from '../log.js'
 
 /** Tipe yang boleh diunggah, dan ekstensi yang server berikan untuk masing-masing. */
@@ -61,17 +62,19 @@ export function uploadRoutes(dir: string): Router {
   const router = Router()
 
   /*
-   * 50mb, naik dari 10mb: satu klip filler jauh lebih besar daripada satu trek musik, yang
-   * sendirinya sudah jauh lebih besar daripada satu latar arena. Angkanya diturunkan dari
-   * kebutuhan — klip 20 detik pada 640x360 CRF 28 tanpa audio itu 1-2 MB — jadi 50 memberi
-   * ruang untuk creator yang menempel 1080p apa adanya, tanpa membuka pintu untuk film.
+   * Batasnya `MAX_UPLOAD_LIMIT` di `@lga/shared`, BUKAN angka yang ditulis di sini.
+   *
+   * Klien menolak berkas kebesaran sebelum mengunggahnya, dan ia harus menolak pada angka
+   * yang sama persis: klien yang lebih longgar berarti creator menunggu unggahan 300 MB
+   * selesai hanya untuk dijawab 413, klien yang lebih ketat berarti berkas sah ditolak tanpa
+   * pernah menyentuh server. Satu konstanta menutup keduanya.
    *
    * ponytail: express.raw() menahan seluruh berkas di memori; pindah ke stream ke disk kalau
-   * 50mb terbukti menyakitkan.
+   * batas ini terbukti menyakitkan.
    * ponytail: res.send(buffer) tidak melayani Range request, jadi video tidak bisa di-seek.
    * Panel filler hanya memutar dari awal sampai habis, jadi Range belum dibutuhkan.
    */
-  router.post('/', raw({ type: Object.keys(EXTENSIONS), limit: '50mb' }), async (req, res) => {
+  router.post('/', raw({ type: Object.keys(EXTENSIONS), limit: MAX_UPLOAD_LIMIT }), async (req, res) => {
     const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim() ?? ''
     const ext = EXTENSIONS[contentType]
     if (ext === undefined || !Buffer.isBuffer(req.body) || req.body.length === 0) {

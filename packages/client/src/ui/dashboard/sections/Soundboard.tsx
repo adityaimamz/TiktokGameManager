@@ -7,6 +7,7 @@ import {
   SOUNDBOARD_TABS,
   cuesOfKind,
   labelFromFilename,
+  musicTransport,
   nextCueId,
 } from './soundboard-view.js'
 
@@ -24,6 +25,8 @@ export interface SoundboardProps {
    */
   musicVolume: number
   onMusicVolume: (volume: number) => void
+  /** Id trek yang sedang berputar; null berarti sunyi. */
+  playingMusicId: string | null
   /** Diinjeksi di test. */
   upload?: (file: File) => Promise<string | null>
 }
@@ -137,30 +140,15 @@ export function Soundboard(props: SoundboardProps): ReactElement {
           />
         </div>
 
-        {/*
-          * Baris sendiri, bukan berbagi baris dengan "Tambah": slider `w-full` di baris yang
-          * sama merebut ruang dari tombol dan memaksa "Stop musik" melipat jadi dua baris.
-          */}
         {kind === 'music' ? (
-          <div className="flex items-center gap-2.5">
-            <button
-              className="btn shrink-0 whitespace-nowrap"
-              onClick={props.onStopMusic}
-              type="button"
-            >
-              Stop musik
-            </button>
-            <input
-              aria-label="Volume musik"
-              className="min-w-0 flex-1 accent-tally"
-              max={1}
-              min={0}
-              onChange={(event) => props.onMusicVolume(Number(event.target.value))}
-              step={0.05}
-              type="range"
-              value={props.musicVolume}
-            />
-          </div>
+          <MusicPlayer
+            cues={props.cues}
+            onFire={props.onFire}
+            onStopMusic={props.onStopMusic}
+            onVolume={props.onMusicVolume}
+            playingId={props.playingMusicId}
+            volume={props.musicVolume}
+          />
         ) : null}
 
         {error === null ? null : (
@@ -170,5 +158,94 @@ export function Soundboard(props: SoundboardProps): ReactElement {
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * Kartu pemutar musik: satu nama, satu baris transport, satu slider.
+ *
+ * Dulu ini sebaris "Stop musik" + slider, dan dua hal hilang di sana: nama trek yang SEDANG
+ * berputar tidak pernah tampil, dan mengganti trek berarti turun ke daftar lalu mencari
+ * berkasnya. Keduanya paling dibutuhkan persis saat creator sedang siaran dan tidak punya
+ * waktu membaca daftar.
+ *
+ * Tombol tengah PLAY/STOP, bukan pause: kanal musik membuang elemennya saat berhenti dan
+ * tidak pernah men-cache trek (`audio-channels.ts`), jadi memutar lagi selalu mulai dari
+ * nol. Ikon ⏸ di sini akan menjanjikan sesuatu yang tidak bisa ditepati mesinnya.
+ */
+function MusicPlayer(props: {
+  cues: readonly CatalogEntry[]
+  playingId: string | null
+  volume: number
+  onFire: (entry: CatalogEntry) => void
+  onStopMusic: () => void
+  onVolume: (volume: number) => void
+}): ReactElement | null {
+  const transport = musicTransport(props.cues, props.playingId)
+  const resume = transport.resume
+  // Tanpa satu pun trek musik, kartunya tidak punya apa pun untuk dikendalikan.
+  if (resume === null) return null
+
+  const playing = transport.playing
+  const step = (entry: CatalogEntry | null): (() => void) | undefined =>
+    entry === null ? undefined : () => props.onFire(entry)
+
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-edge bg-ink/40 px-3 py-2.5">
+      <span
+        className="max-w-full truncate text-xs text-signal"
+        data-testid="music-now-playing"
+        title={playing?.label ?? undefined}
+      >
+        {playing === null ? 'Tidak ada yang berputar' : `♪ ${playing.label}`}
+      </span>
+
+      <div className="flex items-center gap-3">
+        <button
+          aria-label="Trek sebelumnya"
+          className="panel-action text-base disabled:opacity-30"
+          data-testid="music-prev"
+          disabled={transport.previous === null}
+          onClick={step(transport.previous)}
+          type="button"
+        >
+          ⏮
+        </button>
+        {/*
+          * Lingkaran besar, dan sengaja jauh lebih besar dari tetangganya: ini satu-satunya
+          * tombol di kartu ini yang creator cari dalam keadaan panik.
+          */}
+        <button
+          aria-label={playing === null ? 'Putar musik' : 'Hentikan musik'}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-signal text-lg text-ink transition hover:opacity-90"
+          data-testid="music-toggle"
+          onClick={() => (playing === null ? props.onFire(resume) : props.onStopMusic())}
+          type="button"
+        >
+          {playing === null ? '▶' : '■'}
+        </button>
+        <button
+          aria-label="Trek berikutnya"
+          className="panel-action text-base disabled:opacity-30"
+          data-testid="music-next"
+          disabled={transport.next === null}
+          onClick={step(transport.next)}
+          type="button"
+        >
+          ⏭
+        </button>
+      </div>
+
+      <input
+        aria-label="Volume musik"
+        className="w-full accent-tally"
+        max={1}
+        min={0}
+        onChange={(event) => props.onVolume(Number(event.target.value))}
+        step={0.05}
+        type="range"
+        value={props.volume}
+      />
+    </div>
   )
 }

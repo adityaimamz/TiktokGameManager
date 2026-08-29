@@ -1,3 +1,4 @@
+import { MAX_UPLOAD_BYTES } from '@lga/shared'
 import { apiFetch } from '../../platform/app-key.js'
 import { serverBaseUrl } from '../../platform/server-url.js'
 /**
@@ -18,14 +19,38 @@ import { serverBaseUrl } from '../../platform/server-url.js'
  */
 let uploadErrorHandler: ((message: string) => void) | null = null
 
+function uploadFailureMessage(status: number): string {
+  if (status === 413) return `Berkas melebihi batas ${megabytes(MAX_UPLOAD_BYTES)}.`
+  if (status === 415 || status === 400) return 'Format berkas ini tidak didukung.'
+  return 'Berkas gagal diunggah.'
+}
+
 export function setUploadErrorHandler(handler: ((message: string) => void) | null): void {
   uploadErrorHandler = handler
+}
+
+/** Megabyte bulat untuk pesan galat — creator tidak membaca byte. */
+function megabytes(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024))} MB`
 }
 
 export async function uploadFile(
   file: File,
   fetchImpl: typeof fetch = apiFetch,
 ): Promise<string | null> {
+  /*
+   * Ditolak SEBELUM diunggah, pada angka yang sama dengan server.
+   *
+   * Tanpa penjaga ini creator menunggu 300 MB naik sampai selesai hanya untuk dijawab 413 —
+   * dan pada koneksi rumahan itu belasan menit yang berakhir dengan satu kalimat galat.
+   */
+  if (file.size > MAX_UPLOAD_BYTES) {
+    uploadErrorHandler?.(
+      `Berkas ${megabytes(file.size)} melebihi batas ${megabytes(MAX_UPLOAD_BYTES)}.`,
+    )
+    return null
+  }
+
   try {
     const response = await fetchImpl(`${serverBaseUrl()}/api/uploads`, {
       method: 'POST',
@@ -33,7 +58,13 @@ export async function uploadFile(
       body: file,
     })
     if (!response.ok) {
-      uploadErrorHandler?.('Berkas gagal diunggah.')
+      /*
+       * Status DIBEDAKAN, karena ketiganya menuntut tindakan yang berbeda dari creator:
+       * kecilkan berkasnya, ganti formatnya, atau hubungi yang punya server. Satu kalimat
+       * untuk ketiganya membuat creator menebak — dan yang paling sering benar, ukuran,
+       * justru yang paling mudah diperbaiki sendiri.
+       */
+      uploadErrorHandler?.(uploadFailureMessage(response.status))
       return null
     }
     const body = (await response.json()) as { url?: unknown }
