@@ -6,6 +6,18 @@ export const ROSTER_TOPIC = 'roster'
 export const CONFIG_TOPIC = 'config'
 export const FEED_TOPIC = 'feed'
 export const MEDIA_TOPIC = 'media'
+/**
+ * Overlay yang baru hidup menyapa, dan pemilik engine menjawab dengan mengulang state.
+ *
+ * Satu-satunya topik yang mengalir ke ARAH SEBALIKNYA. Ia ada karena `BroadcastChannel`
+ * tidak menahan apa pun: overlay yang dibuka SESUDAH `publishConfig()` — urutan yang wajar,
+ * karena creator menyalakan game dulu baru mengaktifkan scene OBS — tidak akan pernah
+ * melihat config, dan menggambar seluruh siaran dengan `defaultConfig()`.
+ *
+ * Jalur `ws` tidak memakainya (soket overlay di server hanya menerima); di sana yang
+ * menutup lubang yang sama adalah `republishState()` saat hitungan overlay naik.
+ */
+export const REQUEST_STATE_TOPIC = 'request-state'
 
 export const SIGNAL_TOPICS: readonly string[] = [
   SNAPSHOT_TOPIC,
@@ -13,6 +25,7 @@ export const SIGNAL_TOPICS: readonly string[] = [
   CONFIG_TOPIC,
   FEED_TOPIC,
   MEDIA_TOPIC,
+  REQUEST_STATE_TOPIC,
 ]
 
 /** Menulis 20 snapshot per detik ke localStorage akan membekukan tab. */
@@ -50,6 +63,15 @@ export class GameSignals<TRoster = unknown, TConfig = unknown, TFeed = unknown> 
 
   private lastPersistAtMs = Number.NEGATIVE_INFINITY
   private pendingSnapshot: Float32Array | null = null
+  /**
+   * Payload terakhir tiap topik KEADAAN, ditahan di memori supaya bisa diulang.
+   *
+   * Bukan dibaca ulang dari `storage`: kanal ws membuang setiap post selama nol overlay,
+   * jadi yang tersimpan di sana bisa lebih tua dari yang sudah dipakai engine — dan di
+   * device lain penyimpanannya kosong sama sekali.
+   */
+  private lastRoster: TRoster | null = null
+  private lastConfig: TConfig | null = null
 
   constructor(opts: GameSignalsOptions) {
     this.channel = opts.channel
@@ -69,13 +91,38 @@ export class GameSignals<TRoster = unknown, TConfig = unknown, TFeed = unknown> 
   }
 
   publishRoster(roster: TRoster): void {
+    this.lastRoster = roster
     this.channel.post(ROSTER_TOPIC, roster)
     this.persist(ROSTER_TOPIC, roster)
   }
 
   publishConfig(config: TConfig): void {
+    this.lastConfig = config
     this.channel.post(CONFIG_TOPIC, config)
     this.persist(CONFIG_TOPIC, config)
+  }
+
+  /**
+   * Mengulang topik keadaan untuk penonton yang baru bergabung.
+   *
+   * Feed dan media TIDAK ikut, alasan yang sama dengan `REPLAYED_TOPICS` di server:
+   * memutar ulang kill feed sepuluh menit lalu itu berbohong, dan callout gift lama akan
+   * berbunyi lagi di tengah siaran. Snapshot juga tidak — yang berikutnya tiba dalam 50 ms.
+   *
+   * Tidak dipersistensi ulang: isinya persis yang sudah tersimpan saat pertama diterbitkan.
+   */
+  republishState(): void {
+    if (this.lastRoster !== null) this.channel.post(ROSTER_TOPIC, this.lastRoster)
+    if (this.lastConfig !== null) this.channel.post(CONFIG_TOPIC, this.lastConfig)
+  }
+
+  /** Dipanggil overlay saat lahir: "aku baru datang, tolong ulangi keadaannya". */
+  requestState(): void {
+    this.channel.post(REQUEST_STATE_TOPIC, null)
+  }
+
+  onStateRequest(handler: () => void): () => void {
+    return this.on(REQUEST_STATE_TOPIC, () => handler())
   }
 
   /** Entri feed tidak dipersistensikan: kill lima menit lalu tidak layak dipulihkan. */

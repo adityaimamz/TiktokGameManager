@@ -157,6 +157,52 @@ describe('GameSignals', () => {
   })
 })
 
+describe('GameSignals mengulang state untuk penonton yang telat', () => {
+  /*
+   * Lubang yang ditutupnya: creator menyalakan game (publishConfig sekali), BARU
+   * mengaktifkan scene OBS. BroadcastChannel tidak menahan apa pun dan localStorage OBS
+   * kosong, jadi overlay menggambar seluruh siaran dengan defaultConfig() — nama sisi
+   * bawaan, target kill bawaan, dan blob berukuran salah karena baseHp-nya beda.
+   */
+  it('mengirim ulang roster dan config, tapi tidak feed maupun media', () => {
+    const channel = loopbackChannel()
+    const owner = new GameSignals<Roster, { schemaVersion: number }, string>({ channel, now: () => 0 })
+    owner.publishRoster({ version: 7 })
+    owner.publishConfig({ schemaVersion: 3 })
+    owner.publishFeed('kill lama')
+    owner.publishMedia({ kind: 'sound', url: 'x.wav', volume: 1 } as unknown as MediaCue)
+
+    const seen: { topic: string; payload: unknown }[] = []
+    channel.subscribe((message) => seen.push(message))
+    owner.republishState()
+
+    expect(seen.map((m) => m.topic)).toEqual(['roster', 'config'])
+    expect(seen[1]?.payload).toEqual({ schemaVersion: 3 })
+  })
+
+  it('menjawab sapaan overlay dengan mengulang state', () => {
+    const channel = loopbackChannel()
+    const owner = new GameSignals<Roster, { schemaVersion: number }, string>({ channel, now: () => 0 })
+    owner.onStateRequest(() => owner.republishState())
+    owner.publishConfig({ schemaVersion: 3 })
+
+    const latecomer = new GameSignals<Roster, { schemaVersion: number }, string>({ channel, now: () => 0 })
+    const configs: { schemaVersion: number }[] = []
+    latecomer.onConfig((config) => configs.push(config))
+    latecomer.requestState()
+
+    expect(configs).toEqual([{ schemaVersion: 3 }])
+  })
+
+  it('diam saja saat belum ada yang pernah diterbitkan', () => {
+    const channel = loopbackChannel()
+    const seen: string[] = []
+    channel.subscribe((message) => seen.push(message.topic))
+    new GameSignals({ channel, now: () => 0 }).republishState()
+    expect(seen).toEqual([])
+  })
+})
+
 describe('signalCodecs', () => {
   it('turns a snapshot into JSON and back through a real storage channel', () => {
     const storage = createStorage()

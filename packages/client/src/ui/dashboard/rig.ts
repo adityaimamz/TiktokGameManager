@@ -91,6 +91,7 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
   // Dibaca SEKALI di sini: `browserAppKey` juga yang menghapus `k` dari URL, dan
   // memanggilnya dua kali berarti panggilan kedua hanya menemukan sisa di localStorage.
   const appKey = browserAppKey()
+  let remoteOverlays = 0
   const signals = new GameSignals<RosterPayload, BattleArenaConfig, FeedEntry>({
     // Dua penonton bisa hidup bersamaan: OBS di PC ini lewat BroadcastChannel, OBS di
     // device lain lewat WebSocket. Memilih salah satu berarti yang lain gelap.
@@ -103,7 +104,15 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
       createWsSignalChannel({
         binaryTopic: SNAPSHOT_TOPIC,
         appKey,
-        onOverlays: hooks.onOverlays,
+        onOverlays: (count) => {
+          // Naik dari nol berarti ada overlay jauh yang baru menyambung. Sampai detik ini
+          // kanal ws MEMBUANG setiap post, jadi server tidak menahan satu pun topik keadaan
+          // untuk diulang ke soket baru itu — snapshot menyusul sendiri tiap tick, config
+          // tidak, karena ia hanya terbit saat start() dan saat creator mengubah setelan.
+          if (count > 0 && remoteOverlays === 0) signals.republishState()
+          remoteOverlays = count
+          hooks.onOverlays(count)
+        },
       }),
     ]),
     storage: typeof localStorage === 'undefined' ? null : localStorage,
@@ -259,6 +268,12 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
   // TikTok. Tidak ada pesan chat yang datang sebelum itu.
   const tiktok = new TikTokChatSource({ onStatus: hooks.onStatus, appKey })
   chat.addSource(tiktok)
+
+  // Overlay yang baru lahir menyapa lewat kanal yang sama; ini jawabannya. Melayani jalur
+  // BroadcastChannel — OBS di PC ini — yang tidak menahan apa pun, jadi overlay yang dibuka
+  // sesudah game dinyalakan tidak punya cara lain melihat config. Yang jauh dilayani
+  // `onOverlays` di atas, karena soket overlay di server hanya menerima.
+  signals.onStateRequest(() => signals.republishState())
 
   return {
     signals,

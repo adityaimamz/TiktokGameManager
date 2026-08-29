@@ -192,6 +192,12 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
 
   // Req 19 AC4: tampilkan keadaan terakhir yang diketahui sampai update live tiba.
   useEffect(() => {
+    // Sapaan lebih dulu, sebelum apa pun yang dipulihkan dari penyimpanan: `BroadcastChannel`
+    // tidak menahan apa pun, jadi overlay yang dibuka SESUDAH game dinyalakan tidak akan
+    // pernah melihat config — dan ia akan menggambar seluruh siaran dengan defaultConfig(),
+    // lengkap dengan nama sisi "Team A", target kill bawaan, dan blob berukuran salah.
+    signals.requestState()
+
     const restored = signals.restoreLast()
     if (restored.config !== null) setConfig(restored.config)
     if (restored.roster !== null) {
