@@ -6,6 +6,8 @@ import type { ReactElement } from 'react'
 import { useDashboard } from '../../../src/ui/dashboard/useDashboard.js'
 import { uploadFile } from '../../../src/ui/dashboard/upload.js'
 import type { SpeechAdapter, SpeechVoiceOption } from '../../../src/ui/speech/voices.js'
+import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
+import { normalizeMedia } from '../../../src/ui/dashboard/media-store.js'
 
 afterEach(cleanup)
 
@@ -326,5 +328,87 @@ describe('flush statistik siaran', () => {
 
     spy.mockRestore()
     expect(cleared).toBeGreaterThan(0)
+  })
+})
+
+/** Cangkang untuk membuktikan config lintas device benar-benar mendarat di `useDashboard`. */
+function ConfigProbe(): ReactElement {
+  const model = useDashboard()
+  return (
+    <div>
+      <span data-testid="base-hp">{model.config.gameplay.baseHp}</span>
+      <span data-testid="music-volume">{model.media.musicVolume}</span>
+      <button
+        type="button"
+        onClick={() => model.setConfig({ ...model.config, gameplay: { ...model.config.gameplay, baseHp: 321 } })}
+      >
+        edit
+      </button>
+    </div>
+  )
+}
+
+describe('config lintas device', () => {
+  it('mewarisi default config dan media dari server saat device ini belum pernah dikonfigurasi', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/config/battle-arena.config')) {
+        const shared = { ...defaultConfig(), gameplay: { ...defaultConfig().gameplay, baseHp: 555 } }
+        return new Response(JSON.stringify({ value: shared }), { status: 200 })
+      }
+      if (url.includes('/api/config/media.soundboard')) {
+        const shared = { ...normalizeMedia(null), musicVolume: 0.4 }
+        return new Response(JSON.stringify({ value: shared }), { status: 200 })
+      }
+      // Sisanya (health, chat, …) tidak relevan bagi test ini — gagal seperti tanpa server sungguhan.
+      throw new TypeError('Failed to fetch')
+    })
+
+    try {
+      await act(async () => {
+        render(<ConfigProbe />)
+        // Efek sinkron config berjalan async (fetch + validate); biarkan microtask-nya lunas.
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(screen.getByTestId('base-hp').textContent).toBe('555')
+      expect(screen.getByTestId('music-volume').textContent).toBe('0.4')
+    } finally {
+      fetchMock.mockRestore()
+    }
+  })
+
+  it('mengirim (push) config yang diedit ke server, bukan hanya menariknya sekali', async () => {
+    vi.useFakeTimers()
+    const posted: string[] = []
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.includes('/api/config/battle-arena.config')) {
+        posted.push(String((JSON.parse(String(init.body)) as { value: { gameplay: { baseHp: number } } }).value.gameplay.baseHp))
+        return new Response(null, { status: 204 })
+      }
+      throw new TypeError('Failed to fetch')
+    })
+
+    try {
+      render(<ConfigProbe />)
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      act(() => screen.getByRole('button', { name: 'edit' }).click())
+      expect(screen.getByTestId('base-hp').textContent).toBe('321')
+      expect(posted).toEqual([])
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+
+      expect(posted).toEqual(['321'])
+    } finally {
+      fetchMock.mockRestore()
+      vi.useRealTimers()
+    }
   })
 })

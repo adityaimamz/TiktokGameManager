@@ -8,6 +8,7 @@ import { log } from './log.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { chatRoutes } from './routes/chat.js'
 import type { ChatConnection } from './routes/chat.js'
+import { configRoutes } from './routes/config.js'
 import { giftRoutes } from './routes/gifts.js'
 import type { GiftCatalogSource } from './routes/gifts.js'
 import { matchRoutes } from './routes/matches.js'
@@ -138,6 +139,7 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/matches', requireDb)
     app.use('/api/players', requireDb)
     app.use('/api/analytics', requireDb)
+    app.use('/api/config', requireDb)
   } else {
     // Router terpisah, bukan tiga app.use() langsung: itu yang membuat databaseErrors
     // bisa dipasang sesudah ketiganya tanpa ikut menangkap rejection dari /api/chat.
@@ -145,6 +147,7 @@ export function createApp(deps: AppDeps): Express {
     db.use('/matches', matchRoutes(repos))
     db.use('/players', playerRoutes(repos))
     db.use('/analytics', analyticsRoutes(repos))
+    db.use('/config', configRoutes(repos))
     db.use(databaseErrors)
     app.use('/api', db)
   }

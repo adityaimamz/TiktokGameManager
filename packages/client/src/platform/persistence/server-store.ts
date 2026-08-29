@@ -160,6 +160,49 @@ export class ServerStore {
     }
   }
 
+  /**
+   * Default config lintas device untuk satu kunci — sinkron terus-menerus, lihat
+   * `pullSharedDefault`. `null` berarti belum pernah ditulis SIAPA PUN (404), yang bukan
+   * kegagalan dan karena itu tidak dilaporkan lewat `onError` seperti kegagalan lain di kelas
+   * ini.
+   */
+  async defaultConfig(key: string): Promise<unknown | null> {
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/config/${key}`, {
+        headers: this.headers(),
+      })
+      if (response.status === 404) return null
+      if (!response.ok) {
+        this.onError(new Error(`HTTP ${response.status}`), `could not load the default for "${key}"`)
+        return null
+      }
+      const body = (await response.json()) as Record<string, unknown>
+      return body['value'] ?? null
+    } catch (error) {
+      this.onError(error, `could not load the default for "${key}"`)
+      return null
+    }
+  }
+
+  /** Menulis `value` sebagai default bersama untuk `key` — menimpa apa pun yang ada sekarang. */
+  async saveDefaultConfig(key: string, value: unknown): Promise<boolean> {
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/config/${key}`, {
+        method: 'POST',
+        headers: this.headers({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ value }),
+      })
+      if (!response.ok) {
+        this.onError(new Error(`HTTP ${response.status}`), `could not save the default for "${key}"`)
+        return false
+      }
+      return true
+    } catch (error) {
+      this.onError(error, `could not save the default for "${key}"`)
+      return false
+    }
+  }
+
   /** Satu tempat: kunci yang lupa dipasang di satu method akan gagal diam-diam di produksi. */
   private headers(extra: Record<string, string> = {}): Record<string, string> {
     return this.appKey === null || this.appKey === ''

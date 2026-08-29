@@ -23,4 +23,8 @@ export interface Repos {
   recordAnalytics(events: AnalyticsEvent[], matchId: number | null): Promise<number>
   saveGifts(entries: readonly GiftCatalogEntry[]): Promise<number>
   allGifts(): Promise<GiftCatalogEntry[]>
+  /** Default lintas device untuk satu kunci config, atau `null` bila belum pernah ditulis. */
+  getDefaultConfig(key: string): Promise<unknown | null>
+  /** Menimpa default bersama — sinkron terus-menerus, lihat `setDefaultConfig`. */
+  setDefaultConfig(key: string, value: unknown): Promise<void>
 }

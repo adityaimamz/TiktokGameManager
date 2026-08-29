@@ -76,6 +76,8 @@ function createFakeRepos() {
       progressSeen.push([...entries])
       return entries.length
     },
+    getDefaultConfig: async () => null,
+    setDefaultConfig: async () => {},
   }
   return { repos, matchesSeen, progressSeen, analyticsSeen, limitsSeen }
 }
@@ -90,6 +92,8 @@ const spyingRepos = (seen: string[]): Repos => ({
   recordAnalytics: async () => 0,
   saveGifts: async () => 0,
   allGifts: async () => [],
+  getDefaultConfig: async () => null,
+  setDefaultConfig: async () => {},
   topPlayers: async (_limit, sort) => {
     seen.push(sort)
     return []
@@ -327,6 +331,8 @@ describe('database routes', () => {
       recordAnalytics: async () => 0,
       saveGifts: async () => 0,
       allGifts: async () => [],
+      getDefaultConfig: async () => null,
+      setDefaultConfig: async () => {},
     }
     const response = await request(appWith(repos)).post('/api/matches').send(validMatch())
 
@@ -345,6 +351,8 @@ describe('database routes', () => {
       recordAnalytics: async () => 0,
       saveGifts: async () => 0,
       allGifts: async () => [],
+      getDefaultConfig: async () => null,
+      setDefaultConfig: async () => {},
     }
     const response = await request(appWith(repos)).post('/api/matches').send(validMatch())
 

@@ -39,6 +39,6 @@ export function freshDb(): Db {
 /** Mengosongkan seluruh tabel. `cascade` mengurus urutan foreign key. */
 export async function truncateAll(db: Db): Promise<void> {
   await db.execute(
-    sql`truncate table analytics_events, match_players, matches, players, gifts restart identity cascade`,
+    sql`truncate table analytics_events, match_players, matches, players, gifts, app_config restart identity cascade`,
   )
 }

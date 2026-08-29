@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { LocalStore } from '../../../src/platform/persistence/index.js'
+import { LocalStore, ServerStore } from '../../../src/platform/persistence/index.js'
 import type { StorageLike } from '../../../src/platform/persistence/index.js'
 import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
-import { CONFIG_KEY, loadConfig, saveConfig } from '../../../src/ui/dashboard/config-store.js'
+import {
+  CONFIG_KEY,
+  createConfigPusher,
+  loadConfig,
+  pullConfigDefault,
+  saveConfig,
+} from '../../../src/ui/dashboard/config-store.js'
 
 function memoryStorage(
   seed: Record<string, string> = {},
@@ -66,5 +72,42 @@ describe('config-store', () => {
 
     expect(JSON.parse(storage.data.get(`lga:${CONFIG_KEY}`) ?? '{}').likes.threshold).toBe(42)
     expect(storage.data.get('lga:lain')).toBe('"jangan sentuh"')
+  })
+})
+
+describe('pullConfigDefault', () => {
+  it('mengadopsi default server dan memvalidasinya lewat battleArenaConfig.validate — menang meski device sudah punya config sendiri', async () => {
+    const storage = memoryStorage({ [`lga:${CONFIG_KEY}`]: JSON.stringify(defaultConfig()) })
+    const store = new LocalStore({ storage, ...immediate })
+    const shared = { ...defaultConfig(), gameplay: { ...defaultConfig().gameplay, baseHp: 555 } }
+    const server = new ServerStore({
+      fetch: async () => new Response(JSON.stringify({ value: shared }), { status: 200 }),
+    })
+    let inherited = -1
+
+    await pullConfigDefault(store, server, (config) => {
+      inherited = config.gameplay.baseHp
+    })
+
+    expect(inherited).toBe(555)
+    expect(loadConfig(store).gameplay.baseHp).toBe(555)
+  })
+})
+
+describe('createConfigPusher', () => {
+  it('mengirim config yang di-push ke /api/config/battle-arena.config', async () => {
+    const calls: string[] = []
+    const server = new ServerStore({
+      fetch: async (input) => {
+        calls.push(String(input))
+        return new Response(null, { status: 204 })
+      },
+    })
+    const pusher = createConfigPusher(server)
+
+    pusher.push(defaultConfig())
+    await pusher.flush()
+
+    expect(calls).toEqual([`/api/config/${CONFIG_KEY}`])
   })
 })

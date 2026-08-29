@@ -1,5 +1,6 @@
 import type { Db } from '../db/client.js'
 import { insertAnalytics } from './analytics.js'
+import { getDefaultConfig, setDefaultConfig } from './app-config.js'
 import { allGifts, saveGifts } from './gifts.js'
 import { recentMatches, recordMatch } from './matches.js'
 import { recordProgress, topPlayers } from './players.js'
@@ -16,6 +17,8 @@ export function createRepos(db: Db): Repos {
     recordAnalytics: (events, matchId) => insertAnalytics(db, events, matchId),
     saveGifts: (entries) => saveGifts(db, entries),
     allGifts: () => allGifts(db),
+    getDefaultConfig: (key) => getDefaultConfig(db, key),
+    setDefaultConfig: (key, value) => setDefaultConfig(db, key, value),
   }
 }
 

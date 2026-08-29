@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { LocalStore } from '../../../src/platform/persistence/index.js'
+import { LocalStore, ServerStore } from '../../../src/platform/persistence/index.js'
 import { DEFAULT_ALERTS } from '../../../src/platform/signals/index.js'
 import { DEFAULT_READER } from '../../../src/platform/speech/index.js'
-import { MEDIA_KEY, loadMedia, normalizeMedia, saveMedia } from '../../../src/ui/dashboard/media-store.js'
+import {
+  MEDIA_KEY,
+  createMediaPusher,
+  loadMedia,
+  normalizeMedia,
+  pullMediaDefault,
+  saveMedia,
+} from '../../../src/ui/dashboard/media-store.js'
 
 const memoryStore = () => {
   const map = new Map<string, string>()
@@ -160,6 +167,44 @@ describe('normalizeMedia — musicVolume', () => {
     expect(normalizeMedia({ musicVolume: 4 }).musicVolume).toBe(1)
     expect(normalizeMedia({ musicVolume: -2 }).musicVolume).toBe(0)
     expect(normalizeMedia({ musicVolume: 'keras' }).musicVolume).toBe(1)
+  })
+})
+
+describe('pullMediaDefault', () => {
+  it('mengadopsi default server dan menormalkannya lewat normalizeMedia — menang meski device sudah punya media sendiri', async () => {
+    const store = memoryStore()
+    saveMedia(store, normalizeMedia(null))
+    store.flush()
+    const shared = { ...normalizeMedia(null), musicVolume: 0.4 }
+    const server = new ServerStore({
+      fetch: async () => new Response(JSON.stringify({ value: shared }), { status: 200 }),
+    })
+    let inherited = -1
+
+    await pullMediaDefault(store, server, (media) => {
+      inherited = media.musicVolume
+    })
+
+    expect(inherited).toBe(0.4)
+    expect(loadMedia(store).musicVolume).toBe(0.4)
+  })
+})
+
+describe('createMediaPusher', () => {
+  it('mengirim media yang di-push ke /api/config/media.soundboard', async () => {
+    const calls: string[] = []
+    const server = new ServerStore({
+      fetch: async (input) => {
+        calls.push(String(input))
+        return new Response(null, { status: 204 })
+      },
+    })
+    const pusher = createMediaPusher(server)
+
+    pusher.push(normalizeMedia(null))
+    await pusher.flush()
+
+    expect(calls).toEqual([`/api/config/${MEDIA_KEY}`])
   })
 })
 

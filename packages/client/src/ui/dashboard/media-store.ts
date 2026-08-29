@@ -1,6 +1,7 @@
 import { DEFAULT_ALERTS, LEGACY_ALERT_TEXTS, MEDIA_KINDS } from '../../platform/signals/index.js'
 import type { AlertRule, CatalogEntry, MediaKind } from '../../platform/signals/index.js'
-import type { LocalStore } from '../../platform/persistence/index.js'
+import { createSharedConfigPusher, pullSharedDefault } from '../../platform/persistence/index.js'
+import type { LocalStore, ServerStore, SharedConfigPusher } from '../../platform/persistence/index.js'
 import {
   DEFAULT_READER,
   READER_BLOCKED_WORDS_MAX,
@@ -123,4 +124,18 @@ export function loadMedia(store: LocalStore): MediaState {
 
 export function saveMedia(store: LocalStore, state: MediaState): void {
   store.write(MEDIA_KEY, state)
+}
+
+/** Sinkron terus-menerus, bagian "pull" — lihat `pullSharedDefault`. Panggil sekali saat mount. */
+export function pullMediaDefault(
+  store: LocalStore,
+  server: ServerStore,
+  onChange: (state: MediaState) => void,
+): Promise<void> {
+  return pullSharedDefault(store, server, MEDIA_KEY, normalizeMedia, onChange)
+}
+
+/** Sinkron terus-menerus, bagian "push" — kirim tiap `setMedia` lewat `pusher.push()`. */
+export function createMediaPusher(server: ServerStore): SharedConfigPusher {
+  return createSharedConfigPusher(server, MEDIA_KEY)
 }

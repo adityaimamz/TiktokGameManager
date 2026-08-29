@@ -1,6 +1,7 @@
 import { battleArenaConfig } from '../../games/battle-arena/config/index.js'
 import type { BattleArenaConfig } from '../../games/battle-arena/config/index.js'
-import type { LocalStore } from '../../platform/persistence/index.js'
+import { createSharedConfigPusher, pullSharedDefault } from '../../platform/persistence/index.js'
+import type { LocalStore, ServerStore, SharedConfigPusher } from '../../platform/persistence/index.js'
 
 export const CONFIG_KEY = 'battle-arena.config'
 
@@ -18,4 +19,18 @@ export function loadConfig(store: LocalStore): BattleArenaConfig {
 
 export function saveConfig(store: LocalStore, config: BattleArenaConfig): void {
   store.write(CONFIG_KEY, config)
+}
+
+/** Sinkron terus-menerus, bagian "pull" — lihat `pullSharedDefault`. Panggil sekali saat mount. */
+export function pullConfigDefault(
+  store: LocalStore,
+  server: ServerStore,
+  onChange: (config: BattleArenaConfig) => void,
+): Promise<void> {
+  return pullSharedDefault(store, server, CONFIG_KEY, battleArenaConfig.validate, onChange)
+}
+
+/** Sinkron terus-menerus, bagian "push" — kirim tiap `setConfig` lewat `pusher.push()`. */
+export function createConfigPusher(server: ServerStore): SharedConfigPusher {
+  return createSharedConfigPusher(server, CONFIG_KEY)
 }

@@ -255,6 +255,61 @@ describe('ServerStore.recordProgress', () => {
   })
 })
 
+describe('ServerStore.defaultConfig / saveDefaultConfig', () => {
+  it('fetches the stored default for a key', async () => {
+    const rig = createRig(() => jsonResponse({ value: { gameplay: { baseHp: 777 } } }))
+
+    expect(await rig.store.defaultConfig('battle-arena.config')).toEqual({
+      gameplay: { baseHp: 777 },
+    })
+    expect(rig.calls[0]?.url).toBe('/api/config/battle-arena.config')
+    expect(rig.calls[0]?.method).toBe('GET')
+  })
+
+  it('answers null, without recording a failure, when no default has been set yet', async () => {
+    const rig = createRig(() => jsonResponse({ error: 'not set' }, 404))
+
+    expect(await rig.store.defaultConfig('battle-arena.config')).toBeNull()
+    expect(rig.errors).toEqual([])
+  })
+
+  it('answers null and records the failure on any other error', async () => {
+    const rig = createRig(() => jsonResponse({ error: 'boom' }, 500))
+
+    expect(await rig.store.defaultConfig('battle-arena.config')).toBeNull()
+    expect(rig.errors).toHaveLength(1)
+  })
+
+  it('answers null when the server is unreachable', async () => {
+    const rig = createRig(() => {
+      throw new TypeError('Failed to fetch')
+    })
+
+    expect(await rig.store.defaultConfig('battle-arena.config')).toBeNull()
+    expect(rig.errors).toHaveLength(1)
+  })
+
+  it('posts a value to save as the shared default', async () => {
+    const rig = createRig(() => new Response(null, { status: 204 }))
+
+    const ok = await rig.store.saveDefaultConfig('media.soundboard', { musicVolume: 1 })
+
+    expect(ok).toBe(true)
+    expect(rig.calls[0]).toMatchObject({
+      url: '/api/config/media.soundboard',
+      method: 'POST',
+      body: { value: { musicVolume: 1 } },
+    })
+  })
+
+  it('reports failure without throwing when saving is refused', async () => {
+    const rig = createRig(() => jsonResponse({ error: 'boom' }, 500))
+
+    expect(await rig.store.saveDefaultConfig('media.soundboard', {})).toBe(false)
+    expect(rig.errors).toHaveLength(1)
+  })
+})
+
 describe('ServerStore.beaconProgress', () => {
   it('membawa kunci di query karena sendBeacon tidak bisa memasang header', () => {
     const urls: string[] = []

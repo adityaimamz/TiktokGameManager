@@ -71,6 +71,21 @@ export const matchPlayers = pgTable(
   (table) => [primaryKey({ columns: [table.matchId, table.playerId] })],
 )
 
+/**
+ * Default config lintas device — bukan konfigurasi PER match, satu baris per kunci.
+ *
+ * `key` memakai string yang SAMA dengan kunci `LocalStore` di client (`battle-arena.config`,
+ * `media.soundboard`): server tidak pernah menafsirkan `value`, jadi memakai kunci lain hanya
+ * menambah pemetaan tanpa manfaat. Model "salin sekali": device baru mewarisi baris ini saat
+ * localStorage-nya kosong, device yang sudah punya config sendiri MENULISKAN baris ini hanya
+ * kalau belum ada. Sesudah itu tidak ada sinkron berkelanjutan.
+ */
+export const appConfig = pgTable('app_config', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const analyticsEvents = pgTable('analytics_events', {
   id: serial('id').primaryKey(),
   matchId: integer('match_id').references(() => matches.id, { onDelete: 'set null' }),

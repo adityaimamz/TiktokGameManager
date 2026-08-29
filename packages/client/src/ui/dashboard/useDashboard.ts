@@ -31,8 +31,8 @@ import { cueFromEntry, stopMusicCue } from '../../platform/signals/index.js'
 import type { CatalogEntry, MediaCue } from '../../platform/signals/index.js'
 import { bannerFromCue, emptyQueue, expireBanner, pushBanner } from '../media/cue-queue.js'
 import type { BannerItem } from '../media/cue-queue.js'
-import { loadConfig, saveConfig } from './config-store.js'
-import { loadMedia, saveMedia } from './media-store.js'
+import { createConfigPusher, loadConfig, pullConfigDefault, saveConfig } from './config-store.js'
+import { createMediaPusher, loadMedia, pullMediaDefault, saveMedia } from './media-store.js'
 import type { MediaState } from './media-store.js'
 import { connectionNotice, markAllRead, matchNotice, pushNotification } from './notification-list.js'
 import type { NotificationEntry, NotificationKind } from './notification-list.js'
@@ -146,6 +146,11 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
   const persistence = useRef(createPersistence({})).current
   const store = persistence.local
   const [config, setConfigState] = useState<BattleArenaConfig>(() => loadConfig(store))
+  // Sinkron config terus-menerus lintas device — lihat `pullSharedDefault`/`createSharedConfigPusher`.
+  // Debounce hidup di dalam pusher, bukan di sini: sama alasan `LocalStore` men-debounce
+  // tulisan localStorage-nya sendiri.
+  const configPusher = useRef(createConfigPusher(persistence.server)).current
+  const mediaPusher = useRef(createMediaPusher(persistence.server)).current
 
   const history = useRef(new SnapshotHistory()).current
   const lastDrawn = useRef<Float32Array | null>(null)
@@ -351,6 +356,17 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     void persistence.server.health().then(setLanUrls)
   }, [persistence])
 
+  // Config lintas device disinkronkan TERUS-MENERUS, bukan sekali — lihat `pullSharedDefault`.
+  // Device manapun yang terakhir mengedit menang: begitu server punya default, device ini
+  // mengadopsinya meski localStorage-nya sendiri sudah punya sesuatu.
+  useEffect(() => {
+    void pullConfigDefault(store, persistence.server, (next) => {
+      setConfigState(next)
+      rigRef.current?.host.setConfig(next)
+    })
+    void pullMediaDefault(store, persistence.server, setMediaState)
+  }, [store, persistence])
+
   // Satu handler untuk kedua pengunggah — lihat catatan di `upload.ts`.
   useEffect(() => {
     setUploadErrorHandler((text) => notify('error', text))
@@ -423,20 +439,28 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     (next: BattleArenaConfig) => {
       setConfigState(next)
       saveConfig(store, next)
+      configPusher.push(next)
       rigRef.current?.host.setConfig(next)
     },
-    [store],
+    [store, configPusher],
   )
 
   const setMedia = useCallback(
     (next: MediaState) => {
       setMediaState(next)
       saveMedia(store, next)
+      mediaPusher.push(next)
     },
-    [store],
+    [store, mediaPusher],
   )
 
-  const flushConfig = useCallback(() => store.flush(), [store])
+  // Menulis paksa localStorage DAN mengirim paksa push server yang masih tertunda di
+  // debounce — dipakai saat tab akan ditutup, sama alasan `store.flush()` ada.
+  const flushConfig = useCallback(() => {
+    store.flush()
+    void configPusher.flush()
+    void mediaPusher.flush()
+  }, [store, configPusher, mediaPusher])
 
   /** 401 = kunci hilang atau salah; buka dashboard sekali dengan `?k=APP_KEY`. */
   const httpError = (status: number): string =>
