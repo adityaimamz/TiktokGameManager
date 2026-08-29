@@ -37,7 +37,7 @@ describe('ActionLegend', () => {
     expect(screen.getAllByTestId('legend-card')).toHaveLength(10)
   })
 
-  it('menempati separuh KIRI band bawah, bukan tepi arena', () => {
+  it('menempati separuh KANAN band bawah, bukan tepi arena', () => {
     render(<ActionLegend config={defaultConfig()} layout={layout} />)
 
     const band = bottomHalves(layout).legend
@@ -48,11 +48,11 @@ describe('ActionLegend', () => {
     expect(strip.style.height).toBe(`${band.height}px`)
   })
 
-  it('tidak menabrak separuh kanan yang dipakai panel media', () => {
+  it('tidak menabrak separuh kiri yang dipakai panel media', () => {
     const { filler, legend } = bottomHalves(layout)
 
-    expect(legend.x + legend.width).toBe(filler.x)
-    expect(filler.x + filler.width).toBe(layout.bottom.x + layout.bottom.width)
+    expect(filler.x + filler.width).toBe(legend.x)
+    expect(legend.x + legend.width).toBe(layout.bottom.x + layout.bottom.width)
   })
 
   it('tidak memberi latar apa pun pada band maupun kartunya', () => {

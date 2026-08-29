@@ -10,8 +10,8 @@ export interface FillerPanelProps {
 }
 
 /**
- * Isi SEPARUH KANAN band bawah panggung: potongan video atau gambar yang berputar (§4 spec
- * Plan 11). Separuh kirinya milik action legend; `bottomHalves` yang membagi, sekali, untuk
+ * Isi SEPARUH KIRI band bawah panggung: potongan video atau gambar yang berputar (§4 spec
+ * Plan 11). Separuh kanannya milik action legend; `bottomHalves` yang membagi, sekali, untuk
  * keduanya.
  *
  * Ia ada untuk mematahkan monotoni — siaran yang berulang-ulang dibatasi jangkauannya — jadi

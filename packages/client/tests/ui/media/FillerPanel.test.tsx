@@ -34,7 +34,7 @@ describe('FillerPanel', () => {
     expect(screen.queryByTestId('filler-panel')).toBeNull()
   })
 
-  it('mengurung dirinya ke separuh KANAN band bawah', () => {
+  it('mengurung dirinya ke separuh KIRI band bawah', () => {
     render(
       <FillerPanel filler={filler({ items: [{ url: '/a.mp4', kind: 'video' }] })} layout={layout} />,
     )

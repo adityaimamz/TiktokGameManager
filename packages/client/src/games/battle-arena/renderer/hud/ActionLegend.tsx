@@ -69,7 +69,7 @@ export interface ActionLegendProps {
 /**
  * Petunjuk untuk penonton, dibangkitkan dari rule trigger yang berlaku (§9.0.1).
  *
- * Satu baris di SEPARUH KIRI band bawah, berbagi band itu dengan panel media di kanan
+ * Satu baris di SEPARUH KANAN band bawah, berbagi band itu dengan panel media di kiri
  * (`bottomHalves`). Ia sempat jadi dua rail vertikal di tepi arena saat panel media
  * mengambil seluruh band; kembali ke band bawah mengosongkan lagi 34% lebar arena untuk
  * fighter. Tidak ada kartu, latar, bingkai, maupun bayangan kotak di sini — yang menjaga

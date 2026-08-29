@@ -140,7 +140,7 @@ export function fighterDiameter(layout: StageLayout): number {
 export function bottomHalves(layout: StageLayout): { legend: Rect; filler: Rect } {
   const half = layout.bottom.width / 2
   return {
-    legend: { ...layout.bottom, width: half },
-    filler: { ...layout.bottom, x: layout.bottom.x + half, width: half },
+    filler: { ...layout.bottom, width: half },
+    legend: { ...layout.bottom, x: layout.bottom.x + half, width: half },
   }
 }
