@@ -3,9 +3,6 @@ import type { SnapshotView } from '@lga/shared'
 import type { BattleArenaConfig } from '../../config/index.js'
 import { matchStateFromIndex, nukeTypeFromIndex, sideFromIndex } from '../../snapshot.js'
 import type { RosterEntry } from '../../snapshot.js'
-import { buildActionLegend } from '../../triggers.js'
-import type { LegendEntry } from '../../triggers.js'
-import { ARENA_HEIGHT_RATIO, REFERENCE_STAGE_HEIGHT } from '../../arena.js'
 import { tierFor } from '../ultimate.js'
 import type { MatchState } from '../../state-machine.js'
 import type { SideId } from '../../types.js'
@@ -339,95 +336,6 @@ export function calloutModel(
     rows: rows.slice(0, CALLOUT_MAX_ROWS),
     overflow: Math.max(0, rows.length - CALLOUT_MAX_ROWS),
   }
-}
-
-export interface LegendRails {
-  left: LegendEntry[]
-  right: LegendEntry[]
-}
-
-/**
- * Tinggi satu baris rail, px desain.
- *
- * Ikon 28, kondisi ~15, caption yang sering jadi dua baris ~34, dua sela 2, plus sela
- * antar-baris 12. Teks MEMBUNGKUS alih-alih dipotong, jadi dua baris adalah kasus normal,
- * bukan kasus tepi.
- */
-const RAIL_ROW_PX = 96
-
-/**
- * Ruang di KAKI arena yang sudah dipakai overlay lain.
- *
- * Pil status duduk di `arena.height - 46`, dan kill feed (kanan) serta gift+join feed (kiri)
- * berdiri di `bottom.height + 24` — artinya persis di dua sudut bawah arena, tepat di bawah
- * kedua rail. Feed tingginya berubah-ubah dan memudar sendiri, jadi yang dijaga di sini
- * adalah beberapa barisnya, bukan kedalaman maksimalnya: rail yang dijepit sampai kosong
- * lebih buruk daripada serempetan sesaat dengan feed yang sedang ramai.
- */
-export const RAIL_BOTTOM_RESERVE_PX = 96
-
-/**
- * Ruang di KEPALA arena yang sudah dipakai overlay lain, px desain.
- *
- * Diturunkan dari geometri panel-panelnya sendiri, bukan dikira — kalau salah satunya
- * bergeser, angka di sini ikut salah dan itu memang harus terlihat di satu tempat:
- *
- * - Pil ZONA A / ZONA B: `arena.y + 10`, tinggi ~20 → 40.
- * - TOP GIFTER (sudut kanan atas): offset 24 + padding 12 + judul 25 + satu baris 19 +
- *   padding 12 → 92.
- * - TOP FIGHTERS (sudut kiri atas): kartu yang sama dengan `leaderboardEntries` baris, dan
- *   NOL saat creator mematikannya — rail otomatis memanjang begitu papan itu disembunyikan.
- *
- * Yang terbesar yang menang, plus 12 sebagai sela. Satu angka untuk KEDUA rail: rail yang
- * tingginya berbeda kiri dan kanan terbaca sebagai kerusakan, bukan sebagai penghematan.
- */
-export function railTopReservePx(config: BattleArenaConfig): number {
-  const zonePill = 40
-  const topGifter = 24 + 12 + 25 + 19 + 12
-  const topFighters = config.ui.showTopFighters
-    ? 24 + 12 + 25 + config.ui.leaderboardEntries * 19 + 12
-    : 0
-
-  return Math.max(zonePill, topGifter, topFighters) + 12
-}
-
-/**
- * Baris yang muat dalam satu rail, setelah overlay lain mengambil jatahnya.
- *
- * Angka ini hanya memutuskan DI MANA kelebihannya tumpah. Yang benar-benar menjaga tata
- * letak adalah tinggi eksplisit + `overflow: hidden` pada rail di `ActionLegend`, yang
- * membuat daftar sepanjang apa pun berhenti di dalam bandnya.
- */
-export function railCapacity(config: BattleArenaConfig): number {
-  const arenaHeight = REFERENCE_STAGE_HEIGHT * ARENA_HEIGHT_RATIO
-  const available = arenaHeight - railTopReservePx(config) - RAIL_BOTTOM_RESERVE_PX
-  return Math.max(1, Math.floor(available / RAIL_ROW_PX))
-}
-
-/**
- * Entri legend dibagi ke rail kiri dan rail kanan.
- *
- * Entri yang menamai sebuah sisi tidak punya pilihan; yang tidak — gift yang menyasar
- * pengirimnya — mengisi rail KANAN lebih dulu dan baru tumpah ke kiri saat kanan penuh.
- * Bukan dicerminkan ke keduanya: dua salinan dari kartu yang sama memakan ruang arena dua
- * kali untuk informasi yang sama.
- *
- * Dua lintasan, bukan satu: entri bersisi ditempatkan lebih dulu supaya entri netral tahu
- * berapa ruang yang benar-benar tersisa di kanan.
- */
-export function legendRails(config: BattleArenaConfig): LegendRails {
-  const entries = buildActionLegend(config)
-  const capacity = railCapacity(config)
-  const left = entries.filter((entry) => entry.side === 'a')
-  const right = entries.filter((entry) => entry.side === 'b')
-
-  for (const entry of entries) {
-    if (entry.side !== null) continue
-    if (right.length < capacity) right.push(entry)
-    else left.push(entry)
-  }
-
-  return { left, right }
 }
 
 /**

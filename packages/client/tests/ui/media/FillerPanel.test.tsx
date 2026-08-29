@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
 import type { FillerConfig } from '../../../src/games/battle-arena/config/index.js'
-import { computeStageLayout } from '../../../src/games/battle-arena/renderer/layout.js'
+import { bottomHalves, computeStageLayout } from '../../../src/games/battle-arena/renderer/layout.js'
 import { FillerPanel } from '../../../src/ui/media/FillerPanel.js'
 
 afterEach(cleanup)
@@ -34,14 +34,17 @@ describe('FillerPanel', () => {
     expect(screen.queryByTestId('filler-panel')).toBeNull()
   })
 
-  it('mengurung dirinya ke band bawah', () => {
+  it('mengurung dirinya ke separuh KANAN band bawah', () => {
     render(
       <FillerPanel filler={filler({ items: [{ url: '/a.mp4', kind: 'video' }] })} layout={layout} />,
     )
 
+    const band = bottomHalves(layout).filler
     const panel = screen.getByTestId('filler-panel')
-    expect(panel.style.top).toBe(`${layout.bottom.y}px`)
-    expect(panel.style.height).toBe(`${layout.bottom.height}px`)
+    expect(panel.style.left).toBe(`${band.x}px`)
+    expect(panel.style.top).toBe(`${band.y}px`)
+    expect(panel.style.width).toBe(`${band.width}px`)
+    expect(panel.style.height).toBe(`${band.height}px`)
     expect(panel.style.overflow).toBe('hidden')
   })
 

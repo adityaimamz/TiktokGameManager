@@ -2,12 +2,11 @@ import { useRef } from 'react'
 import type { CSSProperties, ReactElement } from 'react'
 import type { BattleAction } from '../../actions.js'
 import type { BattleArenaConfig, TriggerRule } from '../../config/index.js'
-import { actionForRule, creatorActor } from '../../triggers.js'
+import { actionForRule, buildActionLegend, creatorActor } from '../../triggers.js'
 import type { LegendEntry } from '../../triggers.js'
 import type { ActorIdentity } from '../../types.js'
-import { scaled } from '../layout.js'
+import { bottomHalves, scaled } from '../layout.js'
 import type { StageLayout } from '../layout.js'
-import { RAIL_BOTTOM_RESERVE_PX, legendRails, railTopReservePx } from './view-model.js'
 
 /** Ikon legend adalah nama simbolik di config; di sini ia jadi glif yang bisa dilihat. */
 const LEGEND_ICONS: Record<string, string> = {
@@ -34,9 +33,6 @@ const TONE: Record<string, string> = {
 }
 
 const FALLBACK_TONE = '#8C50FF'
-
-/** Lebar rail sebagai bagian lebar arena. Sisanya milik fighter. */
-const RAIL_WIDTH_RATIO = 0.17
 
 /**
  * Bayangan yang menjaga teks terbaca di atas latar APA PUN.
@@ -73,10 +69,11 @@ export interface ActionLegendProps {
 /**
  * Petunjuk untuk penonton, dibangkitkan dari rule trigger yang berlaku (§9.0.1).
  *
- * Dua rail yang MENUMPANG di atas arena, bukan grid di band bawah: band bawah kini milik
- * panel media, dan layar acuan memang menempelkan petunjuknya ke tepi kiri dan kanan bidang
- * main. Tidak ada kartu, latar, bingkai, maupun bayangan kotak di sini — yang menjaga teks
- * terbaca adalah `text-shadow`, bukan tinta gelap di belakangnya.
+ * Satu baris di SEPARUH KIRI band bawah, berbagi band itu dengan panel media di kanan
+ * (`bottomHalves`). Ia sempat jadi dua rail vertikal di tepi arena saat panel media
+ * mengambil seluruh band; kembali ke band bawah mengosongkan lagi 34% lebar arena untuk
+ * fighter. Tidak ada kartu, latar, bingkai, maupun bayangan kotak di sini — yang menjaga
+ * teks terbaca adalah `text-shadow`, bukan tinta gelap di belakangnya.
  *
  * Komponen yang SAMA dipakai overlay dan dashboard; bedanya hanya prop `interactive`.
  */
@@ -89,7 +86,10 @@ export function ActionLegend({
   giftIcons,
 }: ActionLegendProps): ReactElement {
   const clicks = useRef(0)
-  const rails = legendRails(config)
+  // Seluruh entri, tidak dijatah: satu baris mendatar tidak punya batas baris yang harus
+  // dibagi dua seperti rail dulu, dan petunjuk yang hilang adalah petunjuk yang tidak bisa
+  // dijalankan penonton.
+  const entries = buildActionLegend(config)
 
   const fire = (ruleId: string): void => {
     if (onFire === undefined) return
@@ -125,42 +125,52 @@ export function ActionLegend({
     return tone === undefined || tone === '' ? FALLBACK_TONE : tone
   }
 
-  const card = (entry: LegendEntry, side: 'left' | 'right'): ReactElement => {
+  const card = (entry: LegendEntry): ReactElement => {
     const rule = ruleOf(entry.id)
     const tint = tintOf(entry, rule)
     const giftIcon = giftIconOf(rule)
-    const align = side === 'left' ? 'flex-start' : 'flex-end'
 
+    /*
+     * Ikon di SAMPING teks, bukan di atasnya.
+     *
+     * Tumpukan tegak memakai ~50 px desain per kartu, dan separuh band bawah cuma setinggi
+     * 194 — empat kartu, habis. Sepuluh trigger baru muat kalau seluruh kartu jadi SATU
+     * baris: ikon, kondisi, dan caption bersebelahan (~18 px), bukan bertumpuk tiga tingkat.
+     *
+     * Basis 120 px desain, BUKAN 0: `flex-wrap` memutuskan pindah baris dari basis, bukan
+     * dari lebar akhir, jadi basis 0 membuat sepuluh kartu tetap memaksa satu baris dan
+     * menyusut sampai lebih sempit dari katanya sendiri. Dengan 120 mereka jadi dua kolom di
+     * portrait (separuh band ~304 px) dan tetap MELAR mengisi barisnya di landscape.
+     */
     const style: CSSProperties = {
       display: 'flex',
-      flexDirection: 'column',
-      alignItems: align,
-      gap: scaled(layout, 2),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scaled(layout, 5),
       padding: 0,
       color: '#fff',
       font: 'inherit',
-      textAlign: side === 'left' ? 'left' : 'right',
+      textAlign: 'left',
       cursor: interactive ? 'pointer' : 'default',
       minWidth: 0,
-      maxWidth: '100%',
+      flex: `1 1 ${scaled(layout, 120)}px`,
     }
 
     /*
      * MEMBUNGKUS DI SPASI, tidak dipotong, dan TIDAK PERNAH di tengah kata.
      *
-     * Rail ini sempit dan caption seperti "JOIN TEAM MESSI" atau nama gift panjang tidak
-     * muat satu baris. Dipotong `…`, yang tersisa di layar justru "JOIN M…" — petunjuk yang
-     * tidak bisa dijalankan penonton. Dua baris yang terbaca lebih berguna daripada satu
-     * baris yang rapi, jadi tidak ada `nowrap` maupun `textOverflow` di sini.
+     * Kartu ini sempit — separuh band bawah dibagi rata — dan caption seperti "JOIN TEAM
+     * MESSI" atau nama gift panjang tidak muat satu baris. Dipotong `…`, yang tersisa di
+     * layar justru "JOIN M…" — petunjuk yang tidak bisa dijalankan penonton. Dua baris yang
+     * terbaca lebih berguna daripada satu baris yang rapi, jadi tidak ada `nowrap` maupun
+     * `textOverflow` di sini.
      *
      * `overflowWrap` WAJIB `normal`, dan itu bukan nilai bawaan yang kebetulan. Nilainya
      * pernah `anywhere`, yang membuat sumbangan min-content sebuah baris menyusut jadi satu
      * huruf — kartu boleh menyempit sampai lebih sempit dari katanya sendiri, dan
      * "BLACKHOLE" pecah jadi "BLACKHOL" + "E". `break-word` tidak menyelamatkan: ia tetap
      * memecah kata yang sendirian lebih lebar dari barisnya. Hanya `normal` yang benar-benar
-     * mengharamkan potongan di tengah kata; harganya kata yang kelewat panjang MELUBER dari
-     * rail, dan itu ditukar dengan sadar — kata utuh yang menjorok masih bisa dibaca, kata
-     * yang terbelah tidak.
+     * mengharamkan potongan di tengah kata.
      */
     const line: CSSProperties = {
       // INTINYA SELALU PUTIH, warnanya jadi halo.
@@ -169,7 +179,7 @@ export function ActionLegend({
       // latar ungu praktis lenyap. Putih punya kontras tertinggi terhadap hampir semua
       // latar; tint tetap membedakan jenis pemicu, hanya pindah ke cahayanya.
       color: '#fff',
-      textShadow: textShadow(tint, scaled(layout, 9)),
+      textShadow: textShadow(tint, scaled(layout, 6)),
       lineHeight: 1.15,
       overflowWrap: 'normal',
       wordBreak: 'normal',
@@ -179,7 +189,9 @@ export function ActionLegend({
     const content = (
       <>
         {giftIcon === null ? (
-          <span style={{ fontSize: scaled(layout, 28), lineHeight: 1, filter: ICON_SHADOW }}>
+          <span
+            style={{ fontSize: scaled(layout, 18), lineHeight: 1, flex: '0 0 auto', filter: ICON_SHADOW }}
+          >
             {LEGEND_ICONS[entry.icon] ?? '⭐'}
           </span>
         ) : (
@@ -188,8 +200,9 @@ export function ActionLegend({
             data-testid="legend-gift-icon"
             src={giftIcon}
             style={{
-              width: scaled(layout, 28),
-              height: scaled(layout, 28),
+              width: scaled(layout, 18),
+              height: scaled(layout, 18),
+              flex: '0 0 auto',
               objectFit: 'contain',
               display: 'block',
               filter: ICON_SHADOW,
@@ -197,38 +210,61 @@ export function ActionLegend({
           />
         )}
         {/*
-          * Nama gift MENGHILANG begitu gambarnya sendiri yang tampil.
+          * Kondisi dan caption SEBELAHAN, bukan bertumpuk.
           *
-          * Gambar hadiah TikTok sudah menyebutkan hadiah mana yang diminta, dan mengulanginya
-          * sebagai teks memakan satu baris di rail yang cuma selebar 17% arena — baris yang
-          * lebih berguna dipakai caption. Digantung pada `giftIcon`, bukan pada jenis rule:
-          * kartu yang jatuh ke 🎁 tidak menyebut hadiah apa pun, jadi di sana namanya adalah
-          * satu-satunya petunjuk dan tetap dicetak. Kondisi non-gift — keyword sisi, FOLLOW,
-          * ambang like — tidak pernah punya gambar, jadi tidak pernah ikut hilang.
+          * `"a"` di atas `JOIN RONALDO` memakai dua baris untuk satu kalimat yang dibaca
+          * sekali jalan — dan tumpukan itulah yang membuat kartu setinggi dua baris. Satu
+          * baris membacanya seperti kalimatnya sendiri ("ketik a → join ronaldo") DAN
+          * memotong tinggi kartu jadi separuh. `flexWrap` menjaga caption panjang tetap
+          * turun sendiri alih-alih meluber.
           */}
-        {giftIcon !== null ? null : (
+        <span
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            columnGap: scaled(layout, 5),
+            rowGap: 0,
+            minWidth: 0,
+          }}
+        >
+          {/*
+            * Nama gift MENGHILANG begitu gambarnya sendiri yang tampil.
+            *
+            * Gambar hadiah TikTok sudah menyebutkan hadiah mana yang diminta, dan
+            * mengulanginya sebagai teks memakan tempat di kartu yang sempit. Digantung pada
+            * `giftIcon`, bukan pada jenis rule: kartu yang jatuh ke 🎁 tidak menyebut hadiah
+            * apa pun, jadi di sana namanya satu-satunya petunjuk dan tetap dicetak. Kondisi
+            * non-gift — keyword sisi, FOLLOW, ambang like — tidak pernah punya gambar, jadi
+            * tidak pernah ikut hilang.
+            */}
+          {giftIcon !== null ? null : (
+            <span
+              style={{
+                ...line,
+                // Lebih BESAR dari caption, bukan lebih kecil: `"a"` adalah yang benar-benar
+                // harus diketik penonton, sementara caption cuma menjelaskan akibatnya.
+                fontSize: scaled(layout, 14),
+                fontWeight: 800,
+                letterSpacing: '0.02em',
+                textShadow: textShadow(tint, scaled(layout, 8)),
+              }}
+            >
+              {entry.condition}
+            </span>
+          )}
           <span
             style={{
               ...line,
-              fontSize: scaled(layout, 13),
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              opacity: 0.92,
+              fontSize: scaled(layout, 12),
+              fontWeight: 800,
+              letterSpacing: '0.03em',
+              textShadow: textShadow(tint, scaled(layout, 8)),
             }}
           >
-            {entry.condition}
+            {entry.caption}
           </span>
-        )}
-        <span
-          style={{
-            ...line,
-            fontSize: scaled(layout, 15),
-            fontWeight: 800,
-            letterSpacing: '0.06em',
-            textShadow: textShadow(tint, scaled(layout, 12)),
-          }}
-        >
-          {entry.caption}
         </span>
       </>
     )
@@ -236,8 +272,8 @@ export function ActionLegend({
     return interactive ? (
       <button
         data-testid="legend-card"
-        id={`legend-card-${side}-${entry.id}`}
-        key={`${side}-${entry.id}`}
+        id={`legend-card-${entry.id}`}
+        key={entry.id}
         onClick={() => fire(entry.id)}
         style={{ ...style, border: 'none', background: 'none' }}
         type="button"
@@ -245,60 +281,49 @@ export function ActionLegend({
         {content}
       </button>
     ) : (
-      <div data-testid="legend-card" key={`${side}-${entry.id}`} style={style}>
+      <div data-testid="legend-card" key={entry.id} style={style}>
         {content}
       </div>
     )
   }
 
   /*
-   * Band vertikal yang BEBAS dari overlay lain.
+   * Separuh kiri band bawah, dan tidak sepiksel pun di luarnya.
    *
-   * TOP FIGHTERS dan TOP GIFTER menempati kedua sudut atas arena, kill feed dan gift feed
-   * kedua sudut bawah — persis tempat rail berdiri. Jatah keduanya dihitung di view-model
-   * dari geometri panelnya sendiri, dan rail mengambil sisanya. Tinggi EKSPLISIT plus
-   * `overflow: hidden` yang menegakkannya: daftar sepanjang apa pun berhenti di dalam band,
-   * tidak pernah tumbuh menimpa tetangganya.
+   * Tinggi EKSPLISIT plus `overflow: hidden` yang menegakkannya: berapa pun rule yang
+   * dinyalakan creator, barisnya berhenti di dalam band dan tidak pernah tumbuh menimpa
+   * panel media di sebelahnya.
+   *
+   * Dianggarkan untuk SEPULUH trigger, bukan enam. Di portrait separuh band 304×194 px
+   * desain: dua kolom (basis 120) × lima baris kartu setinggi ~18 px, plus sela 4 → ~106 px,
+   * masih jauh di bawah 194 walau beberapa caption membungkus jadi dua baris. Yang membuatnya
+   * muat adalah kartu yang seluruhnya SATU BARIS — ikon, kondisi, caption bersebelahan —
+   * bukan sela yang dirapatkan, yang cuma membeli satu baris.
    */
-  const railTop = scaled(layout, railTopReservePx(config))
-  const railHeight = Math.max(
-    0,
-    layout.arena.height - railTop - scaled(layout, RAIL_BOTTOM_RESERVE_PX),
-  )
-
-  const rail = (side: 'left' | 'right', entries: LegendEntry[]): ReactElement => {
-    const width = layout.arena.width * RAIL_WIDTH_RATIO
-    return (
-      <div
-        data-testid={`legend-rail-${side}`}
-        style={{
-          position: 'absolute',
-          left: side === 'left' ? layout.arena.x : layout.arena.x + layout.arena.width - width,
-          top: layout.arena.y + railTop,
-          width,
-          height: railHeight,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: side === 'left' ? 'flex-start' : 'flex-end',
-          gap: scaled(layout, 12),
-          padding: `0 ${scaled(layout, 8)}px`,
-          boxSizing: 'border-box',
-          pointerEvents: interactive ? 'auto' : 'none',
-        }}
-      >
-        {entries.map((entry) => card(entry, side))}
-      </div>
-    )
-  }
+  const band = bottomHalves(layout).legend
 
   return (
     <div
       data-testid="action-legend"
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+      style={{
+        position: 'absolute',
+        left: band.x,
+        top: band.y,
+        width: band.width,
+        height: band.height,
+        overflow: 'hidden',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignContent: 'center',
+        gap: `${scaled(layout, 4)}px ${scaled(layout, 8)}px`,
+        padding: `0 ${scaled(layout, 8)}px`,
+        boxSizing: 'border-box',
+        pointerEvents: interactive ? 'auto' : 'none',
+      }}
     >
-      {rail('left', rails.left)}
-      {rail('right', rails.right)}
+      {entries.map((entry) => card(entry))}
     </div>
   )
 }

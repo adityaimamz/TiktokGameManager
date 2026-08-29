@@ -6,15 +6,10 @@ import { matchStateIndex } from '../../../../../src/games/battle-arena/snapshot.
 import type { RosterEntry } from '../../../../../src/games/battle-arena/snapshot.js'
 import type { SideId } from '../../../../../src/games/battle-arena/types.js'
 import { ultimateWith } from '../../../../testing/ultimate-fixtures.js'
-import { buildActionLegend } from '../../../../../src/games/battle-arena/triggers.js'
 import {
-  RAIL_BOTTOM_RESERVE_PX,
   calloutModel,
   formatCoins,
-  legendRails,
   matchStatusLabel,
-  railCapacity,
-  railTopReservePx,
   mvp,
   scoreBarModel,
   topFighters,
@@ -429,98 +424,6 @@ describe('calloutModel', () => {
     const snapshot = viewWith([{ casterSlot: 0 }, { casterSlot: 1 }])
     snapshot.header.ultimateCount = 1
     expect(calloutModel(snapshot, casters, defaultConfig()).rows).toHaveLength(1)
-  })
-})
-
-describe('legendRails', () => {
-  it('menaruh rule sisi A di kiri dan rule sisi B di kanan', () => {
-    const config = defaultConfig()
-
-    const rails = legendRails(config)
-
-    expect(rails.left.find((entry) => entry.side === 'a')).toBeDefined()
-    expect(rails.right.find((entry) => entry.side === 'b')).toBeDefined()
-    expect(rails.right.some((entry) => entry.side === 'a')).toBe(false)
-    expect(rails.left.some((entry) => entry.side === 'b')).toBe(false)
-  })
-
-  it('tidak pernah menggambar satu entri di kedua rail', () => {
-    const config = defaultConfig()
-
-    const rails = legendRails(config)
-    const ids = [...rails.left, ...rails.right].map((entry) => entry.id)
-
-    expect(new Set(ids).size).toBe(ids.length)
-    expect(ids).toHaveLength(buildActionLegend(config).length)
-  })
-
-  it('mengisi rail kanan lebih dulu dengan entri tanpa sisi tertentu', () => {
-    const config = defaultConfig()
-
-    const rails = legendRails(config)
-    const neutral = buildActionLegend(config).filter((entry) => entry.side === null)
-
-    expect(neutral.length).toBeGreaterThan(0)
-    for (const entry of neutral) {
-      expect(rails.right.some((candidate) => candidate.id === entry.id)).toBe(true)
-    }
-  })
-
-  it('menumpahkan sisanya ke rail kiri saat kanan sudah penuh', () => {
-    const config = defaultConfig()
-    const gift = config.triggers.find((rule) => rule.when.kind === 'gift')
-    if (gift === undefined) throw new Error('expected a gift rule to clone')
-    // Dua belas rule netral melawan kapasitasnya: kelebihannya tumpah ke rail kiri.
-    config.triggers = Array.from({ length: 12 }, (_, index) => ({
-      ...gift,
-      id: `gift-${index}`,
-      enabled: true,
-    }))
-
-    const rails = legendRails(config)
-    const capacity = railCapacity(config)
-
-    expect(capacity).toBeLessThan(12)
-    expect(rails.right).toHaveLength(capacity)
-    expect(rails.left).toHaveLength(12 - capacity)
-    expect(rails.right[0]?.id).toBe('gift-0')
-    expect(rails.left[0]?.id).toBe(`gift-${capacity}`)
-  })
-
-  it('menyisakan ruang untuk TOP FIGHTERS, dan memanjang lagi saat papan itu dimatikan', () => {
-    const config = defaultConfig()
-    config.ui.leaderboardEntries = 8
-
-    const withBoard = railTopReservePx(config)
-    const withoutBoard = railTopReservePx({ ...config, ui: { ...config.ui, showTopFighters: false } })
-
-    // Papan itu duduk di sudut kiri ATAS arena, persis di kepala rail.
-    expect(withBoard).toBeGreaterThan(withoutBoard)
-    expect(railCapacity({ ...config, ui: { ...config.ui, showTopFighters: false } })).toBeGreaterThan(
-      railCapacity(config),
-    )
-  })
-
-  it('menyisakan ruang di kaki arena untuk pil status dan kill feed', () => {
-    expect(RAIL_BOTTOM_RESERVE_PX).toBeGreaterThan(0)
-    expect(railCapacity(defaultConfig())).toBeGreaterThanOrEqual(1)
-  })
-
-  it('mempertahankan urutan config.triggers di dalam satu rail', () => {
-    const config = defaultConfig()
-
-    const rails = legendRails(config)
-    const order = config.triggers.map((rule) => rule.id)
-    const leftOrder = rails.left.map((entry) => order.indexOf(entry.id))
-
-    expect(leftOrder).toStrictEqual([...leftOrder].sort((a, b) => a - b))
-  })
-
-  it('mengosongkan kedua rail saat semua rule dimatikan', () => {
-    const config = defaultConfig()
-    config.triggers = config.triggers.map((rule) => ({ ...rule, enabled: false }))
-
-    expect(legendRails(config)).toStrictEqual({ left: [], right: [] })
   })
 })
 

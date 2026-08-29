@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { defaultConfig } from '../../../../../src/games/battle-arena/config/index.js'
-import { computeStageLayout, scaled } from '../../../../../src/games/battle-arena/renderer/layout.js'
+import { bottomHalves, computeStageLayout } from '../../../../../src/games/battle-arena/renderer/layout.js'
 import { ActionLegend } from '../../../../../src/games/battle-arena/renderer/hud/ActionLegend.js'
-import { RAIL_BOTTOM_RESERVE_PX, legendRails, railTopReservePx } from '../../../../../src/games/battle-arena/renderer/hud/view-model.js'
+import { buildActionLegend } from '../../../../../src/games/battle-arena/triggers.js'
 
 afterEach(cleanup)
 
@@ -13,37 +13,54 @@ const layout = computeStageLayout(1600, 900, 'landscape')
 describe('ActionLegend', () => {
   it('renders one card per enabled rule, straight from the trigger config', () => {
     const config = defaultConfig()
-    const rails = legendRails(config)
 
     render(<ActionLegend config={config} layout={layout} />)
 
-    expect(screen.getAllByTestId('legend-card')).toHaveLength(
-      rails.left.length + rails.right.length,
-    )
+    expect(screen.getAllByTestId('legend-card')).toHaveLength(buildActionLegend(config).length)
   })
 
-  it('menggambar dua rail di dalam arena, bukan di band bawah', () => {
-    render(<ActionLegend config={defaultConfig()} layout={layout} />)
+  it('memuat sepuluh trigger di dalam band, tanpa satu pun yang hilang', () => {
+    const config = defaultConfig()
+    const gift = config.triggers.find((rule) => rule.when.kind === 'gift')
+    if (gift === undefined) throw new Error('expected a gift rule to clone')
+    config.triggers = Array.from({ length: 10 }, (_, index) => ({
+      ...gift,
+      id: `gift-${index}`,
+      enabled: true,
+      legend: { ...gift.legend, show: true },
+    }))
 
-    const left = screen.getByTestId('legend-rail-left')
-    const right = screen.getByTestId('legend-rail-right')
-    const top = layout.arena.y + scaled(layout, railTopReservePx(defaultConfig()))
-    expect(left.style.top).toBe(`${top}px`)
-    expect(right.style.top).toBe(`${top}px`)
-    expect(left.style.left).toBe(`${layout.arena.x}px`)
-    expect(right.style.left).toBe(`${layout.arena.x + layout.arena.width * (1 - 0.17)}px`)
+    render(<ActionLegend config={config} layout={layout} />)
+
+    // Anggaran tinggi ada di komentar `ActionLegend`; yang dijaga di sini adalah tidak ada
+    // kartu yang dijatah keluar seperti dulu dilakukan `railCapacity`.
+    expect(screen.getAllByTestId('legend-card')).toHaveLength(10)
   })
 
-  it('tidak memberi latar apa pun pada rail maupun kartunya', () => {
+  it('menempati separuh KIRI band bawah, bukan tepi arena', () => {
     render(<ActionLegend config={defaultConfig()} layout={layout} />)
 
-    for (const rail of [
-      screen.getByTestId('legend-rail-left'),
-      screen.getByTestId('legend-rail-right'),
-    ]) {
-      expect(rail.style.background).toBe('')
-      expect(rail.style.borderTop).toBe('')
-    }
+    const band = bottomHalves(layout).legend
+    const strip = screen.getByTestId('action-legend')
+    expect(strip.style.left).toBe(`${band.x}px`)
+    expect(strip.style.top).toBe(`${band.y}px`)
+    expect(strip.style.width).toBe(`${band.width}px`)
+    expect(strip.style.height).toBe(`${band.height}px`)
+  })
+
+  it('tidak menabrak separuh kanan yang dipakai panel media', () => {
+    const { filler, legend } = bottomHalves(layout)
+
+    expect(legend.x + legend.width).toBe(filler.x)
+    expect(filler.x + filler.width).toBe(layout.bottom.x + layout.bottom.width)
+  })
+
+  it('tidak memberi latar apa pun pada band maupun kartunya', () => {
+    render(<ActionLegend config={defaultConfig()} layout={layout} />)
+
+    const strip = screen.getByTestId('action-legend')
+    expect(strip.style.background).toBe('')
+    expect(strip.style.borderTop).toBe('')
     for (const card of screen.getAllByTestId('legend-card')) {
       expect(card.style.background).toBe('')
       expect(card.style.border).toBe('')
@@ -69,27 +86,23 @@ describe('ActionLegend', () => {
     }
   })
 
-  it('mengurung rail di dalam arena, di atas pil status', () => {
+  it('mengurung kartunya di dalam band, berapa pun rule yang dinyalakan', () => {
     render(<ActionLegend config={defaultConfig()} layout={layout} />)
 
-    const config = defaultConfig()
-    const rail = screen.getByTestId('legend-rail-right')
-    const reserved = railTopReservePx(config) + RAIL_BOTTOM_RESERVE_PX
-    expect(rail.style.overflow).toBe('hidden')
-    expect(rail.style.height).toBe(`${layout.arena.height - scaled(layout, reserved)}px`)
+    expect(screen.getByTestId('action-legend').style.overflow).toBe('hidden')
   })
 
-  it('menembakkan aksi rule yang benar saat kartu di rail kanan diklik', () => {
+  it('menembakkan aksi rule yang benar saat sebuah kartu diklik', () => {
     const config = defaultConfig()
-    const target = legendRails(config).right[0]
-    if (target === undefined) throw new Error('rail kanan tidak boleh kosong secara bawaan')
+    const target = buildActionLegend(config).at(-1)
+    if (target === undefined) throw new Error('legend tidak boleh kosong secara bawaan')
     const onFire = vi.fn()
 
     render(<ActionLegend config={config} layout={layout} interactive onFire={onFire} />)
     // Lewat `id`, bukan `data-testid`: testid kartu sudah dipakai nilai `legend-card`, yang
-    // dipakai test lain untuk menghitung seluruh kartu di kedua rail.
-    const button = document.getElementById(`legend-card-right-${target.id}`)
-    if (button === null) throw new Error('kartu rail kanan tidak ditemukan')
+    // dipakai test lain untuk menghitung seluruh kartu.
+    const button = document.getElementById(`legend-card-${target.id}`)
+    if (button === null) throw new Error('kartu tidak ditemukan')
     fireEvent.click(button)
 
     expect(onFire).toHaveBeenCalledTimes(1)
@@ -191,7 +204,7 @@ describe('ActionLegend', () => {
   })
 
   it('never breaks a caption in the middle of a word', () => {
-    // `anywhere` pernah memecah "BLACKHOLE" jadi "BLACKHOL" + "E" di rail sempit.
+    // `anywhere` pernah memecah "BLACKHOLE" jadi "BLACKHOL" + "E" di kartu sempit.
     render(<ActionLegend config={defaultConfig()} layout={layout} />)
 
     for (const card of screen.getAllByTestId('legend-card')) {

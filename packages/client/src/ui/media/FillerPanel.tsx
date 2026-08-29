@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactElement } from 'react'
 import type { FillerConfig } from '../../games/battle-arena/config/index.js'
+import { bottomHalves } from '../../games/battle-arena/renderer/layout.js'
 import type { StageLayout } from '../../games/battle-arena/renderer/layout.js'
 
 export interface FillerPanelProps {
@@ -9,7 +10,9 @@ export interface FillerPanelProps {
 }
 
 /**
- * Isi band bawah panggung: potongan video atau gambar yang berputar (§4 spec Plan 11).
+ * Isi SEPARUH KANAN band bawah panggung: potongan video atau gambar yang berputar (§4 spec
+ * Plan 11). Separuh kirinya milik action legend; `bottomHalves` yang membagi, sekali, untuk
+ * keduanya.
  *
  * Ia ada untuk mematahkan monotoni — siaran yang berulang-ulang dibatasi jangkauannya — jadi
  * ia BERPUTAR, bukan menampilkan satu benda selamanya.
@@ -77,11 +80,14 @@ export function FillerPanel({ filler, layout }: FillerPanelProps): ReactElement 
     failures.current = 0
   }
 
+  const band = bottomHalves(layout).filler
+
   const media: CSSProperties = {
     width: '100%',
     height: '100%',
-    // `cover`, bukan `contain`: band bawah rasionya sangat lebar (1080×346 di portrait), dan
-    // `contain` menyisakan dua pilar kosong di kiri dan kanan hampir video apa pun.
+    // `cover`, bukan `contain`: separuh band bawah masih jauh lebih lebar daripada tinggi
+    // (960×194 di landscape), dan `contain` menyisakan dua pilar kosong di kiri dan kanan
+    // hampir video apa pun.
     objectFit: 'cover',
     display: 'block',
   }
@@ -91,10 +97,10 @@ export function FillerPanel({ filler, layout }: FillerPanelProps): ReactElement 
       data-testid="filler-panel"
       style={{
         position: 'absolute',
-        left: layout.bottom.x,
-        top: layout.bottom.y,
-        width: layout.bottom.width,
-        height: layout.bottom.height,
+        left: band.x,
+        top: band.y,
+        width: band.width,
+        height: band.height,
         overflow: 'hidden',
         pointerEvents: 'none',
       }}

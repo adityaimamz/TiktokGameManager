@@ -128,3 +128,19 @@ export function scaled(layout: StageLayout, px: number): number {
 export function fighterDiameter(layout: StageLayout): number {
   return scaled(layout, FIGHTER_DIAMETER_PX)
 }
+
+/**
+ * Band bawah dibelah dua: action legend di kiri, panel media di kanan.
+ *
+ * Satu fungsi untuk KEDUA penghuninya, dengan alasan yang sama yang membuat
+ * `computeStageLayout` satu-satunya konversi persen → piksel: dua komponen yang menghitung
+ * sendiri separuhnya pasti menyimpang begitu salah satunya digeser, dan yang terlihat di
+ * layar adalah celah atau tumpang tindih.
+ */
+export function bottomHalves(layout: StageLayout): { legend: Rect; filler: Rect } {
+  const half = layout.bottom.width / 2
+  return {
+    legend: { ...layout.bottom, width: half },
+    filler: { ...layout.bottom, x: layout.bottom.x + half, width: half },
+  }
+}
