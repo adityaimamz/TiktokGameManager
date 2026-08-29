@@ -14,6 +14,8 @@
     "dev:server": "node --watch --env-file=.env --import tsx packages/server/src/index.ts",
     "build": "vite build packages/client",
     "start": "node --import tsx packages/server/src/index.ts",
+    "start:prod": "node --env-file=.env --import tsx packages/server/src/index.ts",
+    "start:tunnel": "npm run build && concurrently -n server,tunnel -c magenta,cyan \"npm:start:prod\" \"\\\"C:\\Program Files (x86)\\cloudflared\\cloudflared.exe\\\" tunnel --url http://localhost:3001\"",
     "preview": "vite preview packages/client",
     "test": "vitest run",
     "test:watch": "vitest",
