@@ -5,6 +5,7 @@ import {
   ARENA_MIDLINE,
   FIGHTER_EDGE_MARGIN,
   FIGHTER_HIT_RADIUS,
+  FIGHTER_SCALE_MAX,
   IDLE_SPEED_PER_TICK,
   PROJECTILE_LIFETIME_MS,
   PROJECTILE_RADIUS,
@@ -106,6 +107,27 @@ describe('sideHalfBounds', () => {
   it('keeps spawn rows away from the very top and bottom', () => {
     expect(sideHalfBounds('a').minY).toBe(10)
     expect(sideHalfBounds('a').maxY).toBe(90)
+  })
+
+  /*
+   * Marginnya `FIGHTER_EDGE_MARGIN * scale`, jadi setiap kenaikan FIGHTER_SCALE_MAX
+   * mempersempit separuh arena dari KEDUA sisi sekaligus. Pada skala 10x ia mengerut jadi
+   * nol lebar dan setiap fighter terbesar akan dijepit ke satu garis; test ini gerbangnya,
+   * dan ia yang seharusnya merah — bukan siaran sungguhan — kalau atapnya dinaikkan terlalu
+   * jauh. Dikunci sebagai relasi terhadap konstantanya, bukan angka, supaya menaikkan atap
+   * cukup mengubah satu tempat.
+   */
+  it('menyisakan separuh arena yang masih bisa ditinggali pada fighter TERBESAR', () => {
+    for (const side of ['a', 'b'] as const) {
+      const bounds = sideHalfBounds(side, FIGHTER_SCALE_MAX)
+      expect(bounds.maxX).toBeGreaterThan(bounds.minX)
+      expect(bounds.maxY).toBeGreaterThan(bounds.minY)
+    }
+  })
+
+  it('tidak pernah membiarkan sebuah sisi menyeberangi garis tengah', () => {
+    expect(sideHalfBounds('a', FIGHTER_SCALE_MAX).maxX).toBeLessThanOrEqual(ARENA_MIDLINE)
+    expect(sideHalfBounds('b', FIGHTER_SCALE_MAX).minX).toBeGreaterThanOrEqual(ARENA_MIDLINE)
   })
 })
 

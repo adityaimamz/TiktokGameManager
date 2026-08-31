@@ -211,6 +211,20 @@ export interface GameplayConfig {
   hpGainedPerGrow: number
   growMode: GrowMode
   nuke: NukeConfig
+  /**
+   * Plafon aksi dari SATU event gift.
+   *
+   * `when.minCount` sebuah rule adalah pembagi: combo ×100 di atas minimal 10 menghasilkan
+   * sepuluh aksi. Tanpa plafon itu tidak berbatas — `minCount` bawaan Rose adalah 1, jadi
+   * satu combo ×6854 akan mengantre 6.854 ultimate, membanjiri ActionQueue (kapasitas 500,
+   * membuang yang terlama) dan mengubur setiap aksi lain di siaran.
+   *
+   * Menjepit di sini MEMEKATKAN, tidak membuang: koin yang dijepit tetap dibagi rata ke
+   * aksi yang tersisa, jadi gift raksasa berujung sedikit ultimate BESAR — bukan ribuan
+   * ultimate kecil, dan bukan koin yang hangus. Berbeda dari `nuke.hardCap`, yang membatasi
+   * berapa ultimate BERANIMASI bersamaan tanpa menyentuh panjang antrean.
+   */
+  maxTriggersPerGift: number
   /** Gift dari viewer yang belum punya fighter otomatis mendaftarkannya (spec §6.2). */
   autoJoinGifter: boolean
   countdownDurationSec: number
@@ -313,6 +327,7 @@ export const NUMERIC_RANGES = {
   'ui.leaderboardEntries': { min: 1, max: 20, integer: true },
   'gameplay.killsToWinRound': { min: 1, max: 999, integer: true },
   'gameplay.maxFightersPerSide': { min: 1, max: 100, integer: true },
+  'gameplay.maxTriggersPerGift': { min: 1, max: 50, integer: true },
   'gameplay.baseHp': { min: 1, max: 9999, integer: true },
   'gameplay.baseDamage': { min: 1, max: 9999, integer: true },
   'gameplay.attackIntervalSec': { min: 0.5, max: 30, integer: false },

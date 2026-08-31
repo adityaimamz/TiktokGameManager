@@ -330,6 +330,11 @@ export function validateSection<K extends keyof BattleArenaConfig>(
           NUMERIC_RANGES['gameplay.maxFightersPerSide'],
           g.maxFightersPerSide,
         ),
+        maxTriggersPerGift: num(
+          pick(raw, 'maxTriggersPerGift'),
+          NUMERIC_RANGES['gameplay.maxTriggersPerGift'],
+          g.maxTriggersPerGift,
+        ),
         baseHp: num(pick(raw, 'baseHp'), NUMERIC_RANGES['gameplay.baseHp'], g.baseHp),
         baseDamage: num(pick(raw, 'baseDamage'), NUMERIC_RANGES['gameplay.baseDamage'], g.baseDamage),
         attackIntervalSec: num(

@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import type { SnapshotView } from '@lga/shared'
 import type { BattleArenaConfig } from '../../config/index.js'
-import type { RosterEntry } from '../../snapshot.js'
+import type { RosterEntry, SessionGifter } from '../../snapshot.js'
 import type { StageLayout } from '../layout.js'
 import { Callout } from './Callout.js'
 import { Feeds } from './Feeds.js'
@@ -15,7 +15,6 @@ import {
   matchStatusLabel,
   scoreBarModel,
   topFighters,
-  topGifter,
   victoryModel,
 } from './view-model.js'
 import { scaled } from '../layout.js'
@@ -29,6 +28,13 @@ export interface HudProps {
   gifts: GiftFeedEntry[]
   nowMs: number
   layout: StageLayout
+  /**
+   * Penyumbang terbesar SESI, dari payload roster.
+   *
+   * Dioper, bukan dihitung di sini: snapshot fighter tidak memuatnya dan tidak bisa —
+   * penyumbang terbesar belum tentu punya fighter sama sekali.
+   */
+  topGifter?: SessionGifter | null
 }
 
 /**
@@ -132,7 +138,7 @@ export function Hud(props: HudProps): ReactElement {
       <Callout model={calloutModel(view, roster, config)} config={config} layout={layout} />
       <MatchStatus view={view} layout={layout} />
       <TopFighters rows={topFighters(view, roster, config)} layout={layout} />
-      <TopGifter row={topGifter(view, roster)} layout={layout} />
+      <TopGifter row={props.topGifter ?? null} layout={layout} />
       <Feeds
         kills={props.kills}
         joins={props.joins}

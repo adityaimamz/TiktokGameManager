@@ -18,7 +18,13 @@ import { runTick } from './simulation.js'
 import type { TickDeps } from './simulation.js'
 import { MatchStateMachine } from './state-machine.js'
 import type { MatchState } from './state-machine.js'
-import { createBattleArenaState, resetMatch, roundsNeeded, startNewRound } from './state.js'
+import {
+  createBattleArenaState,
+  recordSessionGift,
+  resetMatch,
+  roundsNeeded,
+  startNewRound,
+} from './state.js'
 import { markUltimatesStale } from './ultimate.js'
 import type { BattleArenaState } from './state.js'
 import { BattleArenaTriggers } from './triggers.js'
@@ -228,10 +234,16 @@ export class BattleArenaEngine
     // Sebelum trigger: Req 15 AC5 menghitung penyumbang terbesar, termasuk gift yang tidak
     // cocok dengan satu rule pun. Trigger sendiri tidak boleh menyentuh state (Req 30 AC4).
     if (message.kind === 'giftEvent') {
-      this.state.fighters.addGiftCoins(
-        { platform: message.platform, username: message.username, avatarUrl: message.avatarUrl },
-        message.giftCoins,
-      )
+      const gifter = {
+        platform: message.platform,
+        username: message.username,
+        avatarUrl: message.avatarUrl,
+      }
+      this.state.fighters.addGiftCoins(gifter, message.giftCoins)
+      // Tally sesi TERPISAH, dan sengaja tidak lewat FighterRegistry: yang di atas memulangkan
+      // penonton yang belum punya fighter (benar untuk gameplay), sementara TOP GIFTER harus
+      // menghitung mereka juga — merekalah yang paling ingin dilihat creator.
+      recordSessionGift(this.state, gifter, message.giftCoins)
     }
 
     for (const action of this.triggersImpl.resolve(message)) this.queue.enqueue(action)

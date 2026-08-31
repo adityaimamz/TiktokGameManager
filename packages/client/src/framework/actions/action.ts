@@ -14,4 +14,13 @@ export interface Action<TType extends string = string> {
   value: number
   /** Durasi efek dalam milidetik. 0 berarti seketika. */
   duration: number
+  /**
+   * Bila true, action ini tidak pernah dibuang karena kapasitas antrian penuh.
+   *
+   * Dipakai untuk action yang merepresentasikan transaksi gift berbayar yang sudah
+   * confirmed — kehilangan action semacam ini berarti menghilangkan sesuatu yang sudah
+   * dibayar penonton. Antrian menampungnya di wadah terpisah yang tumbuh dinamis,
+   * sehingga action biasa tetap bisa dibuang tanpa mempengaruhi yang dilindungi.
+   */
+  neverEvict?: boolean
 }

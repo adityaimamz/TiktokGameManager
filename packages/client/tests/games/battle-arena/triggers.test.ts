@@ -317,7 +317,74 @@ describe('kondisi gift', () => {
     config.triggers = [giftRule({ then: { actionType: 'grow', target: 'sender', value: 5 } })]
     const triggers = new BattleArenaTriggers(() => config)
 
-    expect(triggers.resolve(gift('Rose', 3, 60))[0]?.value).toBe(60)
+    // Tiga kelipatan (minCount 1, count 3) berbagi 60 koin, jadi yang dikunci adalah
+    // TOTAL-nya: HP yang didapat per koin tidak boleh berubah hanya karena satu event
+    // gift kini pecah jadi beberapa aksi.
+    const actions = triggers.resolve(gift('Rose', 3, 60))
+    expect(actions.reduce((sum, a) => sum + a.value, 0)).toBeCloseTo(60, 6)
+  })
+})
+
+/**
+ * `minCount` adalah PEMBAGI, bukan sekadar gerbang.
+ *
+ * Creator membacanya begitu, dan memang begitu bunyinya di panel: "minimal 10" berarti
+ * sepuluh gift menghasilkan satu trigger. Sebelum ini satu event gift selalu menghasilkan
+ * TEPAT SATU aksi berapa pun banyaknya, jadi combo ×100 di atas minimal 10 memberi hasil
+ * yang sama persis dengan combo ×10 — penonton membayar sepuluh kali lipat untuk hal yang
+ * sama.
+ */
+describe('kelipatan gift', () => {
+  it('memberi satu aksi per kelipatan minCount', () => {
+    const config = defaultConfig()
+    config.triggers = [giftRule({ when: { kind: 'gift', giftNames: [], minCount: 10 } })]
+    const triggers = new BattleArenaTriggers(() => config)
+
+    expect(triggers.resolve(gift('Rose', 100, 100))).toHaveLength(10)
+  })
+
+  it('membulatkan ke bawah — sisa yang belum genap tidak memicu apa pun', () => {
+    const config = defaultConfig()
+    config.triggers = [giftRule({ when: { kind: 'gift', giftNames: [], minCount: 10 } })]
+    const triggers = new BattleArenaTriggers(() => config)
+
+    expect(triggers.resolve(gift('Rose', 29, 29))).toHaveLength(2)
+  })
+
+  it('MEMBAGI koinnya, tidak menyalinnya — total yang dikirim tidak boleh menggelembung', () => {
+    const config = defaultConfig()
+    config.triggers = [giftRule({ when: { kind: 'gift', giftNames: [], minCount: 10 } })]
+    const triggers = new BattleArenaTriggers(() => config)
+
+    const actions = triggers.resolve(gift('Rose', 100, 500))
+
+    // Sepuluh aksi, tapi koinnya tetap 500 — bukan 5.000. Tier ultimate dan satuan Grow
+    // keduanya turun dari angka ini; menyalinnya utuh membuat tiap kelipatan berperilaku
+    // seolah menerima SELURUH gift.
+    expect(actions.reduce((sum, a) => sum + a.giftCoins, 0)).toBeCloseTo(500, 6)
+    expect(actions[0]?.giftCoins).toBeCloseTo(50, 6)
+  })
+
+  it('menjepit di gameplay.maxTriggersPerGift, dan jepitannya MEMEKATKAN bukan membuang', () => {
+    const config = defaultConfig()
+    config.gameplay.maxTriggersPerGift = 4
+    config.triggers = [giftRule({ when: { kind: 'gift', giftNames: [], minCount: 1 } })]
+    const triggers = new BattleArenaTriggers(() => config)
+
+    const actions = triggers.resolve(gift('Rose', 6854, 6854))
+
+    expect(actions).toHaveLength(4)
+    // Koin yang dijepit tidak hangus: ia menumpuk ke aksi yang tersisa, jadi gift raksasa
+    // berujung sedikit ultimate BESAR alih-alih ribuan ultimate kecil.
+    expect(actions.reduce((sum, a) => sum + a.giftCoins, 0)).toBeCloseTo(6854, 3)
+  })
+
+  it('tetap satu aksi saat minCount 1 dan gift tunggal', () => {
+    const config = defaultConfig()
+    config.triggers = [giftRule({ when: { kind: 'gift', giftNames: [], minCount: 1 } })]
+    const triggers = new BattleArenaTriggers(() => config)
+
+    expect(triggers.resolve(gift('Rose', 1, 1))).toHaveLength(1)
   })
 })
 

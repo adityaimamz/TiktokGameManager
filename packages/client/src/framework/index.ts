@@ -14,6 +14,7 @@ export { RenderLoop } from './loop/render-loop.js'
 export type { FrameCanceller, FrameScheduler, RenderLoopOptions } from './loop/render-loop.js'
 
 export { ActionQueue } from './actions/queue.js'
+export type { ActionQueueOptions } from './actions/queue.js'
 export type { Action } from './actions/action.js'
 
 export { circlesOverlap, distanceSquared } from './collision/circle.js'

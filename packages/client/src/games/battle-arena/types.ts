@@ -64,3 +64,17 @@ export interface Projectile extends Entity {
   targetKey: string
   damage: number
 }
+
+/**
+ * Satu penyumbang gift sepanjang sesi.
+ *
+ * Tinggal di sini, bukan di `state.ts`, karena renderer harus membacanya — dan
+ * `renderer/boundaries.test.ts` menggagalkan build kalau sebuah berkas renderer menyentuh
+ * `state.ts`. Avatar ikut disimpan karena penyumbang terbesar belum tentu punya fighter,
+ * jadi ia belum tentu ada di roster untuk dicari.
+ */
+export interface SessionGifter {
+  username: string
+  avatarUrl: string | null
+  coins: number
+}

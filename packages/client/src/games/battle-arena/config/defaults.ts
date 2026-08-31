@@ -100,6 +100,7 @@ export function defaultConfig(): BattleArenaConfig {
       roundsBestOf: 5,
       killsToWinRound: 30,
       maxFightersPerSide: 30,
+      maxTriggersPerGift: 10,
       baseHp: 200,
       baseDamage: 10,
       attackIntervalSec: 1,

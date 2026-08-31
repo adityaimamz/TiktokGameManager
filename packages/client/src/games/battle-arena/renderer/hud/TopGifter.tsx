@@ -2,14 +2,14 @@ import type { ReactElement } from 'react'
 import { scaled } from '../layout.js'
 import type { StageLayout } from '../layout.js'
 import { formatCoins } from './view-model.js'
-import type { GifterRow } from './view-model.js'
+import type { SessionGifter } from './view-model.js'
 
 /** Duduk di seberang TOP FIGHTERS: dua papan, dua pertanyaan, satu baris pandang. */
 export function TopGifter({
   row,
   layout,
 }: {
-  row: GifterRow | null
+  row: SessionGifter | null
   layout: StageLayout
 }): ReactElement | null {
   if (row === null) return null

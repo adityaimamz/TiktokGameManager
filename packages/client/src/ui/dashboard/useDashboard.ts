@@ -7,7 +7,7 @@ import { serverBaseUrl } from '../../platform/server-url.js'
 import { apiFetch } from '../../platform/app-key.js'
 import type { BattleAction } from '../../games/battle-arena/actions.js'
 import { matchStateFromIndex } from '../../games/battle-arena/snapshot.js'
-import type { RosterEntry } from '../../games/battle-arena/snapshot.js'
+import type { RosterEntry, SessionGifter } from '../../games/battle-arena/snapshot.js'
 import type { MatchState } from '../../games/battle-arena/state-machine.js'
 import {
   GIFT_FEED_MAX,
@@ -96,6 +96,8 @@ export interface DashboardModel {
   history: SnapshotHistory
   version: number
   roster: ReadonlyMap<number, RosterEntry>
+  /** Penyumbang terbesar SESI, dari payload roster yang sama dengan yang dikirim ke overlay. */
+  sessionTopGifter: SessionGifter | null
   kills: KillFeedEntry[]
   joins: JoinFeedEntry[]
   gifts: GiftFeedEntry[]
@@ -169,6 +171,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
 
   const [version, setVersion] = useState(0)
   const [roster, setRoster] = useState<ReadonlyMap<number, RosterEntry>>(new Map())
+  const [sessionTopGifter, setSessionTopGifter] = useState<SessionGifter | null>(null)
   const [kills, setKills] = useState<KillFeedEntry[]>([])
   const [joins, setJoins] = useState<JoinFeedEntry[]>([])
   const [gifts, setGifts] = useState<GiftFeedEntry[]>([])
@@ -443,6 +446,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
       lastDrawn.current = snapshot
       history.push(snapshot)
       setRoster(new Map(rig.host.currentRoster))
+      setSessionTopGifter(rig.host.currentTopGifter)
       setVersion((value) => value + 1)
 
       const nextState = matchStateFromIndex(history.current.header.matchState)
@@ -668,6 +672,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     history,
     version,
     roster,
+    sessionTopGifter,
     kills,
     joins,
     gifts,

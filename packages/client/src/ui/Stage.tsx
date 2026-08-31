@@ -14,7 +14,7 @@ import type {
   JoinFeedEntry,
   KillFeedEntry,
 } from '../games/battle-arena/renderer/hud/feed.js'
-import type { RosterEntry } from '../games/battle-arena/snapshot.js'
+import type { RosterEntry, SessionGifter } from '../games/battle-arena/snapshot.js'
 import { FillerPanel } from './media/FillerPanel.js'
 import { MediaLayer } from './media/MediaLayer.js'
 import type { BannerItem } from './media/cue-queue.js'
@@ -25,6 +25,8 @@ export interface StageProps {
   history: SnapshotHistory
   config: BattleArenaConfig
   roster: ReadonlyMap<number, RosterEntry>
+  /** Penyumbang terbesar SESI, dari payload roster. Tidak bisa diturunkan dari snapshot. */
+  topGifter?: SessionGifter | null
   kills: KillFeedEntry[]
   joins: JoinFeedEntry[]
   gifts: GiftFeedEntry[]
@@ -217,6 +219,7 @@ export function Stage(props: StageProps): ReactElement {
         view={history.current}
         config={config}
         roster={props.roster}
+        topGifter={props.topGifter}
         kills={props.kills}
         joins={props.joins}
         gifts={props.gifts}

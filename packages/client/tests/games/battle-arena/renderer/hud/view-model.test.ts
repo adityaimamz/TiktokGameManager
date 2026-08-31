@@ -13,7 +13,6 @@ import {
   mvp,
   scoreBarModel,
   topFighters,
-  topGifter,
   victoryModel,
 } from '../../../../../src/games/battle-arena/renderer/hud/view-model.js'
 
@@ -246,44 +245,6 @@ describe('victoryModel', () => {
   it('says nothing rather than guessing when no round winner was recorded', () => {
     const snapshot = view({ matchState: matchStateIndex('victory'), roundWinner: -1 })
     expect(victoryModel(snapshot, roster(), defaultConfig())).toBeNull()
-  })
-})
-
-describe('topGifter', () => {
-  it('memilih koin tertinggi', () => {
-    const snapshot = view({}, [
-      fighter({ slotIndex: 0, giftCoins: 100 }),
-      fighter({ slotIndex: 1, giftCoins: 900 }),
-    ])
-    const map = roster({ slotIndex: 0, username: 'andi' }, { slotIndex: 1, username: 'budi' })
-    expect(topGifter(snapshot, map)?.username).toBe('budi')
-    expect(topGifter(snapshot, map)?.coins).toBe(900)
-  })
-
-  // Papan kosong lebih jujur daripada nama dengan angka nol.
-  it('tidak menghasilkan apa pun saat belum ada yang memberi hadiah', () => {
-    const snapshot = view({}, [fighter({ slotIndex: 0, giftCoins: 0 })])
-    expect(topGifter(snapshot, roster({ slotIndex: 0, username: 'andi' }))).toBeNull()
-  })
-
-  it('melewati fighter yang tidak ada di roster', () => {
-    const snapshot = view({}, [fighter({ slotIndex: 4, giftCoins: 500 })])
-    expect(topGifter(snapshot, new Map())).toBeNull()
-  })
-
-  it('memutus seri dengan slot terkecil supaya kartu tidak berkedip', () => {
-    const snapshot = view({}, [
-      fighter({ slotIndex: 3, giftCoins: 50 }),
-      fighter({ slotIndex: 1, giftCoins: 50 }),
-    ])
-    const map = roster({ slotIndex: 1, username: 'andi' }, { slotIndex: 3, username: 'budi' })
-    expect(topGifter(snapshot, map)?.username).toBe('andi')
-  })
-
-  // Fighter yang mati tetap menyumbang: koin adalah sumbangan, bukan performa.
-  it('tetap menghitung fighter yang sudah mati', () => {
-    const snapshot = view({}, [fighter({ slotIndex: 0, giftCoins: 700, alive: 0 })])
-    expect(topGifter(snapshot, roster({ slotIndex: 0, username: 'andi' }))?.coins).toBe(700)
   })
 })
 

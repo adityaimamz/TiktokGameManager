@@ -127,5 +127,12 @@ export function createBattleAction(init: BattleActionInit): BattleAction {
     ruleId: init.ruleId ?? null,
     giftName: init.giftName ?? null,
     giftCoins: init.giftCoins ?? 0,
+    // HANYA nuke yang mendapat perlindungan eviction. Action lain yang juga punya
+    // giftCoins > 0 (grow/heal/hasten dari gift) TIDAK dilindungi: kehilangan satu
+    // grow dari like berarti sedikit HP yang tidak naik, sementara kehilangan satu nuke
+    // berarti PANGGUNG TAYANG dari gift yang SUDAH DIBAYAR hilang permanen — nama
+    // pengirim tidak pernah muncul di layar dan animasi ultimatenya tidak pernah
+    // terputar. Keduanya beda tingkat keparahan secara fundamental.
+    neverEvict: init.type === 'nuke' || undefined,
   }
 }

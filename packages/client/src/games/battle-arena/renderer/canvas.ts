@@ -204,7 +204,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, deps: RenderDeps): void
  * arena, dan ekor sepanjang itu terbaca sebagai coretan gemuk melintasi separuh layar,
  * bukan sebagai tembakan.
  */
-const BEAM_LENGTH_PX = 56
+export const BEAM_LENGTH_PX = 28
 
 /**
  * Setiap tembakan digambar sebagai berkas laser pendek: tiga lapis cahaya di atas satu

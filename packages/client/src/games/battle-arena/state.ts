@@ -9,7 +9,7 @@ import { createProjectilePool } from './projectiles.js'
 import type { MatchState } from './state-machine.js'
 import type { UltimateTiming } from '@lga/shared'
 import type { NukeType } from './config/index.js'
-import type { Projectile, SideId } from './types.js'
+import type { Projectile, SessionGifter, SideId } from './types.js'
 
 /**
  * Ultimate sebagai record hidup, bukan efek sekali gambar.
@@ -124,6 +124,58 @@ export interface BattleArenaState {
   pendingUltimates: PendingUltimate[]
   /** Penghitung id ultimate; deterministik karena tidak memakai jam maupun rng. */
   nextUltimateId: number
+  /**
+   * Koin gift per orang sepanjang SESI, dan satu-satunya sumber TOP GIFTER.
+   *
+   * Terpisah dari `Fighter.giftCoins` karena angka itu menjawab pertanyaan lain, dan salah
+   * di tiga cara sekaligus untuk pertanyaan ini: ia dinolkan tiap `startNewMatch`, ia hanya
+   * ada untuk orang yang sudah punya fighter, dan gift PERTAMA dari penonton baru pun luput
+   * karena `addGiftCoins` berjalan di `engine.emit` sementara `ensureGifterJoined` baru
+   * berjalan satu tick kemudian di fase Combat. Peta ini menerima setiap gift dari siapa pun,
+   * apa pun state match-nya.
+   *
+   * Hidup sepanjang sesi: `startNewMatch` TIDAK menyentuhnya — papan gift adalah ucapan
+   * terima kasih, bukan papan skor match — dan hanya Reset creator yang mengosongkannya.
+   */
+  sessionGifts: Map<string, SessionGifter>
+}
+
+/**
+ * Menumpuk satu event gift ke tally sesi.
+ *
+ * Dipanggil dari `engine.emit` untuk SETIAP gift, termasuk dari penonton yang tidak pernah
+ * mengetik keyword dan gift yang tidak cocok dengan satu rule pun.
+ */
+export function recordSessionGift(
+  state: BattleArenaState,
+  actor: { platform: string; username: string; avatarUrl: string | null },
+  coins: number,
+): void {
+  if (coins <= 0) return
+  const key = `${actor.platform}:${actor.username}`
+  const existing = state.sessionGifts.get(key)
+  state.sessionGifts.set(key, {
+    username: actor.username,
+    // Avatar terbaru menang: yang lama bisa null saat gift pertama datang sebelum profilnya
+    // sempat terbaca.
+    avatarUrl: actor.avatarUrl ?? existing?.avatarUrl ?? null,
+    coins: (existing?.coins ?? 0) + coins,
+  })
+}
+
+/**
+ * Penyumbang terbesar sesi, atau null saat belum ada gift sama sekali.
+ *
+ * Seri dipecah oleh username supaya hasilnya stabil antar-frame: dua penyumbang berimbang
+ * yang bertukar tempat tiap tick membuat kartunya berkedip.
+ */
+export function topSessionGifter(state: BattleArenaState): SessionGifter | null {
+  let best: SessionGifter | null = null
+  for (const entry of state.sessionGifts.values()) {
+    if (best === null || entry.coins > best.coins) best = entry
+    else if (entry.coins === best.coins && entry.username < best.username) best = entry
+  }
+  return best
 }
 
 /** Ronde yang harus dimenangkan untuk merebut match: mayoritas sederhana dari best-of. */
@@ -149,6 +201,7 @@ export function createBattleArenaState(deps: {
     effects: new EffectPool(deps.clock, 200, deps.onEffect),
     activeUltimates: [],
     pendingUltimates: [],
+    sessionGifts: new Map(),
     nextUltimateId: 0,
   }
 }
@@ -204,6 +257,12 @@ export function resetMatch(
   state.activeUltimates.length = 0
   state.pendingUltimates.length = 0
   state.nextUltimateId = 0
+  // Tally gift sesi mengikuti roster: match yang melingkar ke lobi berikutnya
+  // MEMPERTAHANKANNYA — papan gift adalah ucapan terima kasih sepanjang siaran, bukan papan
+  // skor match — dan hanya Reset creator yang menghapusnya, bersama arenanya.
   if (keepRoster) state.fighters.startNewMatch(gameplay)
-  else state.fighters.clear()
+  else {
+    state.fighters.clear()
+    state.sessionGifts.clear()
+  }
 }

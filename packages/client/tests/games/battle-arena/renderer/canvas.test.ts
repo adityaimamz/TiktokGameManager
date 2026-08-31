@@ -5,11 +5,23 @@ import { createRecordingContext } from '../../../testing/recording-context.js'
 import { EFFECT_TYPES, defaultConfig } from '../../../../src/games/battle-arena/config/index.js'
 import type { BattleArenaConfig, NukeType } from '../../../../src/games/battle-arena/config/index.js'
 import { AvatarCache } from '../../../../src/games/battle-arena/renderer/avatar-cache.js'
-import { clearStage, drawEffects, drawProjectiles, drawZones, shakeOffset } from '../../../../src/games/battle-arena/renderer/canvas.js'
+import {
+  BEAM_LENGTH_PX,
+  clearStage,
+  drawEffects,
+  drawProjectiles,
+  drawZones,
+  shakeOffset,
+} from '../../../../src/games/battle-arena/renderer/canvas.js'
 import { DeathFade } from '../../../../src/games/battle-arena/renderer/death-fade.js'
 import { HpDisplay } from '../../../../src/games/battle-arena/renderer/hp-display.js'
 import { PROJECTILE_RADIUS } from '../../../../src/games/battle-arena/arena.js'
-import { arenaLengthY, computeStageLayout } from '../../../../src/games/battle-arena/renderer/layout.js'
+import {
+  arenaLengthX,
+  arenaLengthY,
+  computeStageLayout,
+  scaled,
+} from '../../../../src/games/battle-arena/renderer/layout.js'
 import { depsFor } from '../../../testing/ultimate-fixtures.js'
 import type { RenderDeps } from '../../../../src/games/battle-arena/renderer/canvas.js'
 
@@ -246,12 +258,24 @@ describe('drawProjectiles', () => {
   it('memanjangkan berkas hanya sejauh jarak yang sudah ditempuh', () => {
     const ctx = createRecordingContext()
     const d = deps()
+    const full = scaled(d.layout, BEAM_LENGTH_PX)
+    const stepPx = arenaLengthX(d.layout, 4)
+    /*
+     * Alpha DITURUNKAN dari panjang berkas, bukan ditulis sebagai angka.
+     *
+     * Jepitan ini hanya aktif selama jarak tempuh masih di bawah berkas penuh; pada alpha
+     * tetap, memendekkan BEAM_LENGTH_PX diam-diam membuat test ini berhenti menguji apa pun
+     * — dan itu persis yang terjadi saat berkasnya dipendekkan jadi separuh. Setengah
+     * jendela pertumbuhan selalu berada di dalamnya, berapa pun konstantanya.
+     */
+    const alpha = (full / stepPx) * 0.5
     const view = viewWithProjectiles([{ x: 10, y: 50, vx: 4, vy: 0, kind: 0, age: 0 }])
-    drawProjectiles(ctx, view, 0.5, d)
+    drawProjectiles(ctx, view, alpha, d)
 
-    // Setengah langkah tick: kepala sudah 2% lebar arena dari titik lepas, dan ekornya
-    // mendarat persis di titik itu — tidak sedikit pun di belakangnya.
-    expect(beamLengthOf(ctx)).toBeCloseTo(d.layout.arena.width * 0.02, 4)
+    // Ekornya mendarat persis di titik lepas — tidak sedikit pun di belakangnya.
+    expect(beamLengthOf(ctx)).toBeCloseTo(stepPx * alpha, 4)
+    // Dan jepitannya memang yang menentukan, bukan panjang penuhnya.
+    expect(beamLengthOf(ctx)).toBeLessThan(full)
   })
 
   it('honours the count, not the array length', () => {

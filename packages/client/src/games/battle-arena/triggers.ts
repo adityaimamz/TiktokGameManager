@@ -148,17 +148,47 @@ export class BattleArenaTriggers implements IGameTriggers<ChatMessage, BattleAct
       if (count < rule.when.minCount) continue
       const names = rule.when.giftNames
       if (names.length > 0 && !names.some((candidate) => sameGiftName(candidate, name))) continue
-      out.push(
-        actionFromRule(
-          rule,
-          actorOf(message),
-          valueForRule(rule, message.giftCoins),
-          // Non-null selalu: gift history memakai field ini sebagai diskriminator, jadi
-          // event tanpa nama tetap harus membawa sesuatu yang bisa dibaca penonton.
-          name.length > 0 ? name : 'hadiah',
-          message.giftCoins,
-        ),
+
+      /*
+       * `minCount` adalah PEMBAGI, bukan sekadar gerbang.
+       *
+       * Begitu bunyinya di panel creator — "minimal 10" berarti sepuluh gift menghasilkan
+       * satu trigger — jadi combo ×100 harus menghasilkan sepuluh. Sebelum ini satu event
+       * gift selalu berujung TEPAT SATU aksi berapa pun banyaknya, sehingga penonton yang
+       * mengirim ×100 mendapat hasil yang sama persis dengan yang mengirim ×10.
+       */
+      const repeats = Math.min(
+        Math.floor(count / Math.max(1, rule.when.minCount)),
+        Math.max(1, config.gameplay.maxTriggersPerGift),
       )
+
+      /*
+       * Koin DIBAGI, tidak disalin.
+       *
+       * Tier ultimate (`tierIndexFor`) dan satuan Grow keduanya turun dari angka ini, jadi
+       * menyalinnya utuh ke tiap kelipatan membuat sepuluh ultimate masing-masing berperilaku
+       * seolah menerima SELURUH gift. Membaginya menjaga totalnya tetap sama dengan yang
+       * benar-benar dikirim — dan saat plafon menjepit, sisanya MEMEKAT ke aksi yang tersisa
+       * alih-alih hangus, sehingga gift raksasa berujung sedikit ultimate besar.
+       *
+       * Ini tidak menyentuh pembukuan TOP GIFTER: `engine.emit` menjumlahkan koin sekali per
+       * EVENT, sebelum trigger resolve, jadi jumlah aksi tidak bisa menggandakannya.
+       */
+      const share = message.giftCoins / repeats
+
+      for (let i = 0; i < repeats; i++) {
+        out.push(
+          actionFromRule(
+            rule,
+            actorOf(message),
+            valueForRule(rule, share),
+            // Non-null selalu: gift history memakai field ini sebagai diskriminator, jadi
+            // event tanpa nama tetap harus membawa sesuatu yang bisa dibaca penonton.
+            name.length > 0 ? name : 'hadiah',
+            share,
+          ),
+        )
+      }
     }
 
     return out

@@ -9,7 +9,7 @@ import type { EngineEvent } from './events.js'
 import { feedEntryFromEvent } from './renderer/hud/feed.js'
 import type { FeedEntry } from './renderer/hud/feed.js'
 import { RosterPublisher, SnapshotWriter } from './snapshot.js'
-import type { RosterEntry, RosterPayload } from './snapshot.js'
+import type { RosterEntry, RosterPayload, SessionGifter } from './snapshot.js'
 import type { MatchState } from './state-machine.js'
 
 export type BattleArenaSignals = GameSignals<RosterPayload, BattleArenaConfig, FeedEntry>
@@ -44,6 +44,7 @@ export class BattleArenaHost {
   private lastState: MatchState | null = null
   private published: Float32Array | null = null
   private readonly rosterBySlot = new Map<number, RosterEntry>()
+  private topGifter: SessionGifter | null = null
 
   constructor(opts: BattleArenaHostOptions) {
     this.clock = opts.clock
@@ -92,6 +93,7 @@ export class BattleArenaHost {
     if (roster !== null) {
       this.rosterBySlot.clear()
       for (const entry of roster.entries) this.rosterBySlot.set(entry.slotIndex, entry)
+      this.topGifter = roster.topGifter
       this.signals.publishRoster(roster)
     }
 
@@ -110,6 +112,17 @@ export class BattleArenaHost {
   /** Roster terakhir yang disiarkan, sebagai peta slot → entri. */
   get currentRoster(): ReadonlyMap<number, RosterEntry> {
     return this.rosterBySlot
+  }
+
+  /**
+   * Penyumbang terbesar sesi, dari payload roster yang sama.
+   *
+   * Menumpang di sini supaya tab pemilik membaca angka yang PERSIS sama dengan yang dikirim
+   * ke overlay — aturan yang sama yang membuat tab pemilik menggambar dari snapshot-nya
+   * sendiri alih-alih langsung dari state.
+   */
+  get currentTopGifter(): SessionGifter | null {
+    return this.topGifter
   }
 
   dispose(): void {

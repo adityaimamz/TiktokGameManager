@@ -32,7 +32,7 @@ import type {
   JoinFeedEntry,
   KillFeedEntry,
 } from '../games/battle-arena/renderer/hud/feed.js'
-import type { RosterEntry, RosterPayload } from '../games/battle-arena/snapshot.js'
+import type { RosterEntry, RosterPayload, SessionGifter } from '../games/battle-arena/snapshot.js'
 import { ULTIMATE_SOUND } from '../games/battle-arena/effects.js'
 import type { BattleArenaSignals } from '../games/battle-arena/host.js'
 import { Stage } from './Stage.js'
@@ -157,6 +157,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
   const [version, setVersion] = useState(0)
   const [config, setConfig] = useState<BattleArenaConfig>(defaultConfig())
   const [roster, setRoster] = useState<ReadonlyMap<number, RosterEntry>>(new Map())
+  const [topGifter, setTopGifter] = useState<SessionGifter | null>(null)
   const [kills, setKills] = useState<KillFeedEntry[]>([])
   const [joins, setJoins] = useState<JoinFeedEntry[]>([])
   const [gifts, setGifts] = useState<GiftFeedEntry[]>([])
@@ -202,6 +203,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
     if (restored.config !== null) setConfig(restored.config)
     if (restored.roster !== null) {
       setRoster(new Map(restored.roster.entries.map((entry) => [entry.slotIndex, entry])))
+      setTopGifter(restored.roster.topGifter)
     }
     if (restored.snapshot !== null) acceptSnapshot(restored.snapshot)
   }, [signals, acceptSnapshot])
@@ -215,9 +217,10 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
     const offs = [
       signals.onSnapshot(acceptSnapshot),
       signals.onConfig((next) => setConfig(next)),
-      signals.onRoster((next) =>
-        setRoster(new Map(next.entries.map((entry) => [entry.slotIndex, entry]))),
-      ),
+      signals.onRoster((next) => {
+        setRoster(new Map(next.entries.map((entry) => [entry.slotIndex, entry])))
+        setTopGifter(next.topGifter)
+      }),
       signals.onFeed((entry) => {
         if (entry.kind === 'kill') {
           setKills((list) => pushFeed(list, entry, now(), KILL_FEED_MAX, KILL_FEED_TTL_MS))
@@ -258,6 +261,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
           history={history}
           config={config}
           roster={roster}
+          topGifter={topGifter}
           kills={kills}
           joins={joins}
           gifts={gifts}

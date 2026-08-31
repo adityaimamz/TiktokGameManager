@@ -3,7 +3,14 @@ import { createManualClock } from '../../../src/framework/clock.js'
 import { createRng } from '../../../src/framework/rng.js'
 import { resetEntityIds } from '../../../src/framework/entity/factory.js'
 import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
-import { createBattleArenaState, resetMatch, roundsNeeded, startNewRound } from '../../../src/games/battle-arena/state.js'
+import {
+  createBattleArenaState,
+  recordSessionGift,
+  resetMatch,
+  roundsNeeded,
+  startNewRound,
+  topSessionGifter,
+} from '../../../src/games/battle-arena/state.js'
 import { fireProjectile } from '../../../src/games/battle-arena/projectiles.js'
 import { spawnGameEffect } from '../../../src/games/battle-arena/effects.js'
 
@@ -134,5 +141,90 @@ describe('resetMatch', () => {
     // Lobi berikutnya menghitung yang HIDUP; roster yang mati semua tidak akan maju.
     expect(kept?.alive).toBe(true)
     expect(state.roundsWon).toEqual({ a: 0, b: 0 })
+  })
+})
+
+/**
+ * Tally gift SESI — sumber tunggal TOP GIFTER.
+ *
+ * Ia menggantikan penyapuan `Fighter.giftCoins` yang salah di tiga cara sekaligus, dan
+ * ketiganya dikunci di sini: bertahan lintas match, menerima penonton tanpa fighter, dan
+ * tidak bergantung pada urutan `ensureGifterJoined`.
+ */
+describe('tally gift sesi', () => {
+  const gifter = (username: string, avatarUrl: string | null = null) => ({
+    platform: 'tiktok',
+    username,
+    avatarUrl,
+  })
+
+  it('menumpuk beberapa gift dari orang yang sama', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi'), 100)
+    recordSessionGift(state, gifter('andi'), 54)
+
+    expect(topSessionGifter(state)).toEqual({ username: 'andi', avatarUrl: null, coins: 154 })
+  })
+
+  it('memilih penyumbang terbesar, bukan yang terakhir', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi'), 6854)
+    recordSessionGift(state, gifter('budi'), 104)
+
+    expect(topSessionGifter(state)?.username).toBe('andi')
+  })
+
+  it('menghitung penonton yang TIDAK punya fighter sama sekali', () => {
+    const state = makeState()
+    // Tidak ada satu pun fighter yang didaftarkan; ini persis kasus yang dulu hilang, karena
+    // FighterRegistry.addGiftCoins memulangkan pengirim yang belum bergabung.
+    recordSessionGift(state, gifter('hakata1368'), 6854)
+
+    expect([...state.fighters.values()]).toHaveLength(0)
+    expect(topSessionGifter(state)?.coins).toBe(6854)
+  })
+
+  it('memutus seri dengan username supaya kartunya tidak berkedip', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('budi'), 50)
+    recordSessionGift(state, gifter('andi'), 50)
+
+    expect(topSessionGifter(state)?.username).toBe('andi')
+  })
+
+  it('mengabaikan gift tanpa koin', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi'), 0)
+
+    expect(topSessionGifter(state)).toBeNull()
+  })
+
+  it('mempertahankan avatar lama saat gift berikutnya datang tanpa avatar', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi', 'https://x.test/a.png'), 10)
+    recordSessionGift(state, gifter('andi'), 10)
+
+    expect(topSessionGifter(state)?.avatarUrl).toBe('https://x.test/a.png')
+  })
+
+  it('BERTAHAN saat match melingkar ke match berikutnya', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi'), 6854)
+
+    // keepRoster = match selesai lalu melingkar. Papan gift adalah ucapan terima kasih
+    // sepanjang siaran, bukan papan skor match — inilah bug yang membuat TOP GIFTER
+    // menampilkan 104 koin sementara panel Gift menampilkan 6.854.
+    resetMatch(state, defaultConfig().gameplay, true)
+
+    expect(topSessionGifter(state)?.coins).toBe(6854)
+  })
+
+  it('DIHAPUS oleh Reset creator, bersama arenanya', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('andi'), 6854)
+
+    resetMatch(state, defaultConfig().gameplay)
+
+    expect(topSessionGifter(state)).toBeNull()
   })
 })

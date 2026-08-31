@@ -195,51 +195,17 @@ export function victoryModel(
   }
 }
 
-export interface GifterRow {
-  slotIndex: number
-  username: string
-  avatarUrl: string | null
-  coins: number
-}
-
 /**
- * Penyumbang terbesar match berjalan (Req 15 AC5).
+ * TOP GIFTER datang dari payload roster, BUKAN dari snapshot fighter.
  *
- * Fighter yang sudah mati tetap dihitung: koin adalah sumbangan, bukan performa. Nol koin
- * menghasilkan null — papan kosong lebih jujur daripada nama dengan angka nol.
+ * Dulu fungsi ini menyapu `view.fighters` dan membaca `fighter.giftCoins`, dan itu salah di
+ * tiga cara sekaligus: angka itu dinolkan tiap match baru, ia hanya ada untuk orang yang
+ * sudah punya fighter, dan gift PERTAMA dari penonton baru pun luput karena penjumlahannya
+ * berjalan satu tick sebelum `ensureGifterJoined`. Engine sekarang menumpuk tally sesinya
+ * sendiri dan menitipkan pemuncaknya di `RosterPayload.topGifter`; di sini tidak ada lagi
+ * yang perlu dihitung.
  */
-export function topGifter(
-  view: SnapshotView,
-  roster: ReadonlyMap<number, RosterEntry>,
-): GifterRow | null {
-  let best: GifterRow | null = null
-
-  // PERINGATAN dari shared/snapshot.ts: array fighters boleh lebih panjang dari yang
-  // berlaku. Selalu berhenti di fighterCount.
-  for (let i = 0; i < view.header.fighterCount; i++) {
-    const fighter = view.fighters[i]
-    if (fighter === undefined || fighter.giftCoins <= 0) continue
-    const entry = roster.get(fighter.slotIndex)
-    if (entry === undefined) continue
-
-    // Slot terkecil sebagai pemecah seri: tanpa itu dua penyumbang berimbang bertukar
-    // tempat tiap frame dan kartu berkedip.
-    const better =
-      best === null ||
-      fighter.giftCoins > best.coins ||
-      (fighter.giftCoins === best.coins && fighter.slotIndex < best.slotIndex)
-    if (!better) continue
-
-    best = {
-      slotIndex: fighter.slotIndex,
-      username: entry.username,
-      avatarUrl: entry.avatarUrl,
-      coins: fighter.giftCoins,
-    }
-  }
-
-  return best
-}
+export type { SessionGifter } from '../../snapshot.js'
 
 /** Band tidak boleh tumbuh menutupi arena; sisanya diringkas jadi satu angka. */
 export const CALLOUT_MAX_ROWS = 3

@@ -18,8 +18,12 @@ import type { EffectType, NukeType } from './config/index.js'
 import { ultimateProgress } from './ultimate.js'
 import { MATCH_STATES } from './state-machine.js'
 import type { MatchState } from './state-machine.js'
+import { topSessionGifter } from './state.js'
 import type { BattleArenaState } from './state.js'
-import type { SideId } from './types.js'
+import type { SessionGifter, SideId } from './types.js'
+// Di-re-export supaya renderer mengambilnya dari sini bersama RosterEntry; ia dilarang
+// menyentuh state.ts, dan tipe ini justru lahir di sana.
+export type { SessionGifter } from './types.js'
 
 /**
  * Menerjemahkan state Battle Arena ke tata letak numerik §6.2.
@@ -186,6 +190,17 @@ export interface RosterEntry {
 export interface RosterPayload {
   version: number
   entries: RosterEntry[]
+  /**
+   * Penyumbang terbesar SESI, atau null selama belum ada gift.
+   *
+   * Menumpang payload roster dan bukan topik sinyal sendiri, karena topik baru harus ikut
+   * masuk `SIGNAL_TOPICS`, `REPLAYED_TOPICS` di server, dan jalur republish — sementara
+   * roster sudah menempuh ketiganya. Ia juga sudah berupa objek, jadi ada tempat menaruhnya.
+   *
+   * Konsekuensinya `RosterPublisher` ikut menerbitkan saat pemuncaknya berganti, bukan hanya
+   * saat komposisi roster berubah; lihat signature-nya.
+   */
+  topGifter: SessionGifter | null
 }
 
 /**
@@ -215,13 +230,19 @@ export class RosterPublisher {
     }
     entries.sort((a, b) => a.slotIndex - b.slotIndex)
 
-    const signature = entries
-      .map((e) => `${e.slotIndex}:${e.platform}:${e.username}:${e.side}:${e.avatarUrl ?? ''}`)
-      .join('|')
+    // Pemuncak gift ikut ke signature: tanpa itu papan TOP GIFTER hanya berubah saat ada
+    // yang join atau keluar, dan gift yang menggeser juara tidak pernah sampai ke overlay.
+    const topGifter = topSessionGifter(state)
+    const signature = [
+      ...entries.map(
+        (e) => `${e.slotIndex}:${e.platform}:${e.username}:${e.side}:${e.avatarUrl ?? ''}`,
+      ),
+      `top:${topGifter?.username ?? ''}:${topGifter?.coins ?? 0}`,
+    ].join('|')
     if (signature === this.signature) return null
 
     this.signature = signature
     this.current++
-    return { version: this.current, entries }
+    return { version: this.current, entries, topGifter }
   }
 }

@@ -76,15 +76,33 @@ const clamp = (v: number, min: number, max: number): number =>
 /**
  * Batas skala fighter.
  *
- * Atap 1,6x: pada `sqrt`, itu berarti fighter yang menyerap 2,56x HP hanya jadi 1,6x lebih
- * lebar sebagai sasaran — tumbuh tetap menguntungkan, tapi tidak membuat kebal.
+ * Atap 4,0x, dan angkanya dipilih dari titik JENUHNYA, bukan dari besarnya. Pada `sqrt`,
+ * atap `s` tercapai di `s²` kali baseHp: atap 1,6x yang lama jenuh di 2,56x baseHp, jadi
+ * pada siaran sungguhan — di mana gift menumbuhkan HP puluhan kali lipat — hampir SEMUA
+ * fighter mentok di atap dan digambar sama besar. Fighter 86.000 HP kembar identik dengan
+ * yang 5.000. Atap 4,0x memindahkan kejenuhan itu ke 16x baseHp, dan di sanalah rentang
+ * yang terlihat baru punya arti.
  *
- * Lantai 0,8x ADA supaya fighter sekarat tidak menyusut jadi titik. Ia bukan angka estetika:
- * skala menggerakkan hitbox juga, jadi tanpa lantai yang nyaris mati justru paling sulit
- * dihabisi — umpan balik yang membuat pertarungan berlarut, bukan makin tegang.
+ * Ini BUKAN sekadar tampilan. Skala menggerakkan hitbox, jadi atap yang jenuh dini membuat
+ * luas sasaran berhenti tumbuh sementara HP terus naik — fighter raksasa jadi jauh lebih
+ * tahan daripada yang dimaksudkan `sqrt`. Menaikkan atap mengembalikan hubungan "luas
+ * sasaran sebanding HP" untuk rentang yang benar-benar dipakai siaran.
+ *
+ * Harganya nyata dan diterima sadar (keputusan creator): pada 4,0x sebuah blob memakan ~26%
+ * tinggi arena, dan separuh arena jadi sesak saat beberapa fighter besar hidup bersamaan.
+ * `findSpawnPosition` sudah menanganinya dengan jatuh ke kandidat paling lapang alih-alih
+ * memaksakan jarak yang tidak muat.
+ *
+ * Lantai 0,6x. Ia tetap ADA — tanpa lantai, yang nyaris mati menyusut jadi titik dan justru
+ * paling sulit dihabisi, umpan balik yang membuat pertarungan berlarut. Diturunkan dari 0,8x
+ * untuk melebarkan rentang yang terlihat di ujung bawah, dengan harga yang sama arahnya:
+ * fighter sekarat sedikit lebih sulit dibidik daripada sebelumnya.
+ *
+ * Kalau atap dinaikkan lebih jauh lagi, periksa `sideHalfBounds`: marginnya `FIGHTER_EDGE_MARGIN
+ * * scale`, dan pada skala ~10x separuh arena mengerut jadi nol lebar.
  */
-export const FIGHTER_SCALE_MIN = 0.8
-export const FIGHTER_SCALE_MAX = 1.6
+export const FIGHTER_SCALE_MIN = 0.6
+export const FIGHTER_SCALE_MAX = 4.0
 
 /**
  * Skala sebuah fighter dari HP BERJALAN-nya, bukan dari `maxHp`.

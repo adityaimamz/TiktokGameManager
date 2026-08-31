@@ -5,7 +5,7 @@ import { NO_SLOT, SIDE_A, SIDE_B, createSnapshotView } from '@lga/shared'
 import type { SnapshotUltimate, SnapshotView } from '@lga/shared'
 import { defaultConfig } from '../../../../../src/games/battle-arena/config/index.js'
 import { matchStateIndex } from '../../../../../src/games/battle-arena/snapshot.js'
-import type { RosterEntry } from '../../../../../src/games/battle-arena/snapshot.js'
+import type { RosterEntry, SessionGifter } from '../../../../../src/games/battle-arena/snapshot.js'
 import { computeStageLayout } from '../../../../../src/games/battle-arena/renderer/layout.js'
 import { Hud } from '../../../../../src/games/battle-arena/renderer/hud/Hud.js'
 import type { GiftFeedEntry, KillFeedEntry } from '../../../../../src/games/battle-arena/renderer/hud/feed.js'
@@ -35,6 +35,7 @@ const hud = (
   config = defaultConfig(),
   kills: KillFeedEntry[] = [],
   gifts: GiftFeedEntry[] = [],
+  topGifter: SessionGifter | null = null,
 ) => (
   <Hud
     view={view}
@@ -45,6 +46,7 @@ const hud = (
     gifts={gifts}
     nowMs={0}
     layout={layout}
+    topGifter={topGifter}
   />
 )
 
@@ -243,15 +245,32 @@ describe('Hud gift history', () => {
   })
 })
 
+/**
+ * Kartunya digambar dari PROP, bukan dari snapshot fighter.
+ *
+ * Sumbernya tally gift sesi di engine, yang menghitung juga penonton tanpa fighter dan
+ * bertahan lintas match — dua hal yang `fighter.giftCoins` tidak bisa jawab.
+ */
 describe('kartu top gifter', () => {
-  it('menampilkan kartu top gifter', () => {
-    render(hud(snapshot({}, [fighterWith(0, 1250)])))
+  it('menampilkan penyumbang yang dioper', () => {
+    render(
+      hud(snapshot(), defaultConfig(), [], [], {
+        username: 'andi',
+        avatarUrl: null,
+        coins: 1250,
+      }),
+    )
     expect(screen.getByTestId('top-gifter').textContent).toContain('andi')
     expect(screen.getByTestId('top-gifter').textContent).toContain('1,250 coins')
   })
 
   it('tidak menggambar kartu saat belum ada hadiah', () => {
-    render(hud(snapshot({}, [fighterWith(0, 0)])))
+    render(hud(snapshot()))
+    expect(screen.queryByTestId('top-gifter')).toBeNull()
+  })
+
+  it('MENGABAIKAN koin gift di snapshot fighter — itu angka per-match, bukan per-sesi', () => {
+    render(hud(snapshot({}, [fighterWith(0, 9999)])))
     expect(screen.queryByTestId('top-gifter')).toBeNull()
   })
 })

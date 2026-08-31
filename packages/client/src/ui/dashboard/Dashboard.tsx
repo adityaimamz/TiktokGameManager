@@ -354,6 +354,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
                     history={model.history}
                     config={model.config}
                     roster={model.roster}
+                    topGifter={model.sessionTopGifter}
                     kills={model.kills}
                     joins={model.joins}
                     gifts={model.gifts}
