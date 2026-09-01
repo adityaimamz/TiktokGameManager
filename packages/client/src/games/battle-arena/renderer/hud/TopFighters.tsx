@@ -17,26 +17,49 @@ export function TopFighters({
       data-testid="top-fighters"
       style={{
         position: 'absolute',
-        left: layout.arena.x + scaled(layout, 24),
-        top: layout.arena.y + scaled(layout, 24),
-        padding: scaled(layout, 12),
+        left: layout.arena.x + scaled(layout, 16),
+        top: layout.arena.y + scaled(layout, 44),
+        padding: `${scaled(layout, 8)}px ${scaled(layout, 12)}px`,
         borderRadius: scaled(layout, 8),
-        background: 'rgba(0,0,0,0.45)',
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(4px)',
         color: '#fff',
-        fontSize: scaled(layout, 16),
-        minWidth: scaled(layout, 220),
+        fontSize: scaled(layout, 13),
+        minWidth: scaled(layout, 190),
+        zIndex: 5,
       }}
     >
-      <div style={{ opacity: 0.6, letterSpacing: 1, marginBottom: scaled(layout, 6) }}>
+      <div
+        style={{
+          opacity: 0.7,
+          letterSpacing: '0.08em',
+          fontSize: scaled(layout, 11),
+          fontWeight: 700,
+          marginBottom: scaled(layout, 4),
+        }}
+      >
         TOP FIGHTERS
       </div>
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div
           key={row.slotIndex}
-          style={{ display: 'flex', justifyContent: 'space-between', gap: scaled(layout, 16) }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: scaled(layout, 12),
+            padding: `${scaled(layout, 2)}px 0`,
+          }}
         >
-          <span>{row.username}</span>
-          <span style={{ fontWeight: 700 }}>{row.kills}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: scaled(layout, 6) }}>
+            <span style={{ opacity: 0.6, fontSize: scaled(layout, 11) }}>{`${index + 1}.`}</span>
+            <span style={{ maxWidth: scaled(layout, 110), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {row.username}
+            </span>
+          </span>
+          <span style={{ fontWeight: 700, color: '#FFD68A', fontSize: scaled(layout, 12) }}>
+            {row.kills}
+          </span>
         </div>
       ))}
     </div>

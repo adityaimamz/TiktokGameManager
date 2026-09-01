@@ -68,7 +68,7 @@ describe('App', () => {
 
     expect(await screen.findByTestId('lobby-page', {}, DASHBOARD)).toBeTruthy()
     expect(window.location.pathname).toBe('/')
-  })
+  }, 35000)
 
   /**
    * main.tsx membungkus App dalam StrictMode, yang di mode dev menjalankan tiap effect

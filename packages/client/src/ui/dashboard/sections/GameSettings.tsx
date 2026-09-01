@@ -1,9 +1,10 @@
 import type { ReactElement, ReactNode } from 'react'
 import {
   ROUNDS_BEST_OF_VALUES,
+  SIDE_COUNTS,
   SIDE_NAME_MAX_LENGTH,
 } from '../../../games/battle-arena/config/index.js'
-import type { BattleArenaConfig, RoundsBestOf } from '../../../games/battle-arena/config/index.js'
+import type { BattleArenaConfig, RoundsBestOf, SideCount } from '../../../games/battle-arena/config/index.js'
 import type { SideId } from '../../../games/battle-arena/types.js'
 import { Accordion } from './Accordion.js'
 import { ColorField, NumberField, SelectField, TextField, Toggle } from './Field.js'
@@ -87,8 +88,25 @@ export function GameSettings(props: GameSettingsProps): ReactElement {
         <div className="flex flex-col">
           <SideGroup side="a" label="Side A" config={config} onConfig={onConfig} />
           <SideGroup side="b" label="Side B" config={config} onConfig={onConfig} />
+          {config.gameplay.sideCount === 4 ? (
+            <>
+              <SideGroup side="c" label="Side C" config={config} onConfig={onConfig} />
+              <SideGroup side="d" label="Side D" config={config} onConfig={onConfig} />
+            </>
+          ) : null}
 
           <Group title="Match">
+            <SelectField
+              label="Jumlah kubu"
+              value={String(config.gameplay.sideCount ?? 2)}
+              options={[
+                { value: '2', label: '2 Kubu (Side A vs Side B)' },
+                { value: '4', label: '4 Kubu (FFA: Side A, B, C, D)' },
+              ]}
+              onChange={(sideCount) =>
+                onConfig(withGameplay(config, { sideCount: Number(sideCount) as SideCount }))
+              }
+            />
             <SelectField
               label="Win mode"
               value={config.gameplay.winMode}

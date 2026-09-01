@@ -104,7 +104,7 @@ describe('rule contoh gift', () => {
   })
 
   it('lolos validasi tanpa satu rule pun dibuang', () => {
-    expect(validateConfig(defaultConfig()).triggers).toHaveLength(6)
+    expect(validateConfig(defaultConfig()).triggers).toHaveLength(8)
   })
 })
 

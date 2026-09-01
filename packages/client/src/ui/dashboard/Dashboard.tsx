@@ -29,6 +29,7 @@ import { SessionControls } from './sections/SessionControls.js'
 import { Soundboard } from './sections/Soundboard.js'
 import { StageFiller } from './sections/StageFiller.js'
 import { TestActions } from './sections/TestActions.js'
+import type { TestActionId } from './sections/test-actions.js'
 import { useDashboard } from './useDashboard.js'
 import type { SideId } from '../../games/battle-arena/types.js'
 import './dashboard.css'
@@ -153,6 +154,13 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
       ? ''
       : stageUrl(overlayOrigin(location.hostname, location.origin, model.lanUrls), model.appKey)
 
+  const nukeActionId: Record<SideId, TestActionId> = {
+    a: 'nukeA',
+    b: 'nukeB',
+    c: 'nukeC',
+    d: 'nukeD',
+  }
+
   /**
    * Ultimate = satu aksi nuke sungguhan, plus jenisnya yang tersimpan di config.
    *
@@ -162,7 +170,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
     model.setConfig(
       withGameplay(model.config, { nuke: { ...model.config.gameplay.nuke, type: kind } }),
     )
-    model.actions.fireTest(ultimateSide === 'a' ? 'nukeA' : 'nukeB')
+    model.actions.fireTest(nukeActionId[ultimateSide])
   }
 
   return (
@@ -253,8 +261,14 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
                 side: ultimateSide,
                 onSide: setUltimateSide,
                 onFire: fireUltimate,
+                sideCount: model.config.gameplay.sideCount,
                 currentKind: model.config.gameplay.nuke.type,
-                sideNames: { a: model.config.sides.a.name, b: model.config.sides.b.name },
+                sideNames: {
+                  a: model.config.sides.a.name,
+                  b: model.config.sides.b.name,
+                  c: model.config.sides.c.name,
+                  d: model.config.sides.d.name,
+                },
               }}
             />
           </div>
@@ -354,7 +368,7 @@ export function Dashboard(props: DashboardProps = {}): ReactElement {
                     history={model.history}
                     config={model.config}
                     roster={model.roster}
-                    topGifter={model.sessionTopGifter}
+                    topGifters={model.sessionTopGifters}
                     kills={model.kills}
                     joins={model.joins}
                     gifts={model.gifts}

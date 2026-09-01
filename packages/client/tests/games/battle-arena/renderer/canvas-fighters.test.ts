@@ -309,7 +309,7 @@ describe('drawEffects', () => {
 describe('BattleArenaRenderer', () => {
   const snapshotWithOneFighter = (x: number): Float32Array => {
     const buf = new Float32Array(snapshotLength(1, 0, 0))
-    buf.set([1, 0, 3, 0, 0, 0, 0, 1, 0, 0, -1], 0)
+    buf.set([1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0], 0)
     buf.set([0, x, 50, 100, 100, SIDE_A, 1, 0, -1, 0], SNAPSHOT_HEADER_LENGTH)
     return buf
   }

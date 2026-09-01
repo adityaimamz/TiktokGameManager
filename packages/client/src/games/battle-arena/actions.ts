@@ -36,7 +36,7 @@ export const RELATIVE_SCOPES: readonly RelativeScope[] = [
 ]
 
 /** Sasaran sebuah TriggerRule, diselesaikan jadi target string saat rule dipicu. */
-export type TargetKind = 'sender' | 'sideA' | 'sideB' | 'all' | RelativeScope
+export type TargetKind = 'sender' | 'sideA' | 'sideB' | 'sideC' | 'sideD' | 'all' | RelativeScope
 
 export interface BattleAction extends Action<BattleActionType> {
   /** Viewer di balik aksi ini, atau null untuk aksi tanpa pengirim. */
@@ -79,6 +79,8 @@ export function parseTarget(target: string): ResolvedTarget {
   if (target.startsWith('fighter:')) return { kind: 'fighter', key: target.slice('fighter:'.length) }
   if (target === 'side:a') return { kind: 'side', side: 'a' }
   if (target === 'side:b') return { kind: 'side', side: 'b' }
+  if (target === 'side:c') return { kind: 'side', side: 'c' }
+  if (target === 'side:d') return { kind: 'side', side: 'd' }
 
   for (const scope of RELATIVE_SCOPES) {
     const prefix = `${scope}:`
@@ -98,6 +100,10 @@ export function targetFromKind(kind: TargetKind, actor: ActorIdentity | null): s
       return sideTarget('a')
     case 'sideB':
       return sideTarget('b')
+    case 'sideC':
+      return sideTarget('c')
+    case 'sideD':
+      return sideTarget('d')
     case 'all':
       return ALL_TARGET
     default:

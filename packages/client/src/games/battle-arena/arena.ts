@@ -185,6 +185,8 @@ export const IDLE_TURN_MAX_MS = 1500
 /** Auto-advance dari Result ke Reset bila creator tidak mengonfirmasi (Req 23 AC7). */
 export const RESULT_AUTO_ADVANCE_MS = 10_000
 
+export const ARENA_MIDLINE_Y = 50
+
 export interface Bounds {
   minX: number
   maxX: number
@@ -193,15 +195,27 @@ export interface Bounds {
 }
 
 /**
- * Zona rumah sebuah sisi: separuh arena, disisipkan sejauh margin tepi.
+ * Zona rumah sebuah sisi: separuh arena (2 kubu) atau 1 kuadran (4 kubu grid 2x2).
  *
- * Margin ikut skala fighter supaya yang besar tidak menempel di dinding atau menjorok
- * melewati garis tengah lebih jauh daripada yang kecil. Pada skala 1 hasilnya identik
- * dengan sebelumnya — itu disengaja, supaya titik spawn berseed yang lama tidak bergeser.
+ * Margin ikut skala fighter supaya yang besar tidak menempel di dinding atau garis tengah.
  */
-export function sideHalfBounds(side: SideId, scale = 1): Bounds {
+export function sideBounds(side: SideId, sideCount: 2 | 4 = 2, scale = 1): Bounds {
   const margin = FIGHTER_EDGE_MARGIN * scale
-  return side === 'a'
+  if (sideCount === 4) {
+    switch (side) {
+      case 'a': // Top-Left
+        return { minX: margin, maxX: ARENA_MIDLINE - margin, minY: margin, maxY: ARENA_MIDLINE_Y - margin }
+      case 'b': // Top-Right
+        return { minX: ARENA_MIDLINE + margin, maxX: ARENA_MAX - margin, minY: margin, maxY: ARENA_MIDLINE_Y - margin }
+      case 'c': // Bottom-Left
+        return { minX: margin, maxX: ARENA_MIDLINE - margin, minY: ARENA_MIDLINE_Y + margin, maxY: ARENA_MAX - margin }
+      case 'd': // Bottom-Right
+        return { minX: ARENA_MIDLINE + margin, maxX: ARENA_MAX - margin, minY: ARENA_MIDLINE_Y + margin, maxY: ARENA_MAX - margin }
+    }
+  }
+
+  // 2-sisi bawaan (kiri vs kanan)
+  return side === 'a' || side === 'c'
     ? { minX: margin, maxX: ARENA_MIDLINE - margin, minY: SPAWN_Y_MIN, maxY: SPAWN_Y_MAX }
     : {
         minX: ARENA_MIDLINE + margin,
@@ -211,19 +225,24 @@ export function sideHalfBounds(side: SideId, scale = 1): Bounds {
       }
 }
 
+/** Alias kompatibilitas mundur untuk mode 2 sisi. */
+export function sideHalfBounds(side: SideId, scale = 1): Bounds {
+  return sideBounds(side, 2, scale)
+}
+
 /**
- * Fighter selalu tetap di separuh miliknya (Req 7 AC3, Req 8 AC1).
- *
- * Berlaku di setiap state — menyerang, cooldown, atau menganggur — karena satu-satunya
- * gerak fighter adalah wander acak, tidak pernah mengejar. Hanya projectile yang
- * menyeberang. Serangan tidak digerbang jarak (Req 9 AC1), jadi pertarungan tidak pernah
- * buntu terlepas dari seberapa jauh dua fighter berdiri dari garis tengah.
+ * Fighter selalu tetap di zona kubu miliknya.
  */
-export function clampToSideHalf(p: Vec2, side: SideId, scale = 1): void {
-  const b = sideHalfBounds(side, scale)
+export function clampToSideZone(p: Vec2, side: SideId, sideCount: 2 | 4 = 2, scale = 1): void {
+  const b = sideBounds(side, sideCount, scale)
   const margin = FIGHTER_EDGE_MARGIN * scale
   p.x = clamp(p.x, b.minX, b.maxX)
-  p.y = clamp(p.y, ARENA_MIN + margin, ARENA_MAX - margin)
+  p.y = sideCount === 4 ? clamp(p.y, b.minY, b.maxY) : clamp(p.y, ARENA_MIN + margin, ARENA_MAX - margin)
+}
+
+/** Alias kompatibilitas mundur untuk mode 2 sisi. */
+export function clampToSideHalf(p: Vec2, side: SideId, scale = 1): void {
+  clampToSideZone(p, side, 2, scale)
 }
 
 /** Dipakai untuk membuang projectile yang lolos keluar arena (Req 26 AC5). */
@@ -231,10 +250,43 @@ export function isOutsideArena(p: Vec2): boolean {
   return p.x < ARENA_MIN || p.x > ARENA_MAX || p.y < ARENA_MIN || p.y > ARENA_MAX
 }
 
-/** Maksimum korban satu nuke (Req 14 AC2). */
+/** Titik tengah zona milik sebuah sisi — pusat kuadran / ledakan nuke. */
+export function sideCenter(side: SideId, sideCount: 2 | 4 = 2): { x: number; y: number } {
+  if (sideCount === 4) {
+    switch (side) {
+      case 'a':
+        return { x: 25, y: 25 }
+      case 'b':
+        return { x: 75, y: 25 }
+      case 'c':
+        return { x: 25, y: 75 }
+      case 'd':
+        return { x: 75, y: 75 }
+    }
+  }
 
-/** Titik tengah separuh arena milik sebuah sisi — pusat ledakan nuke (Req 14 AC2). */
-export function sideHalfCenter(side: SideId): { x: number; y: number } {
   const half = ARENA_MIDLINE / 2
-  return { x: side === 'a' ? half : ARENA_MIDLINE + half, y: (ARENA_MIN + ARENA_MAX) / 2 }
+  return { x: side === 'a' || side === 'c' ? half : ARENA_MIDLINE + half, y: (ARENA_MIN + ARENA_MAX) / 2 }
+}
+
+/** Alias kompatibilitas mundur untuk mode 2 sisi. */
+export function sideHalfCenter(side: SideId): { x: number; y: number } {
+  return sideCenter(side, 2)
+}
+
+/** Sudut hadap awal saat fighter lahir (menghadap ke arah tengah arena). */
+export function initialFacingAngle(side: SideId, sideCount: 2 | 4 = 2): number {
+  if (sideCount === 4) {
+    switch (side) {
+      case 'a':
+        return Math.PI / 4 // 45 deg (bawah-kanan)
+      case 'b':
+        return (3 * Math.PI) / 4 // 135 deg (bawah-kiri)
+      case 'c':
+        return -Math.PI / 4 // -45 deg (atas-kanan)
+      case 'd':
+        return (-3 * Math.PI) / 4 // -135 deg (atas-kiri)
+    }
+  }
+  return side === 'a' || side === 'c' ? 0 : Math.PI
 }

@@ -1,4 +1,4 @@
-import { NO_SLOT, SIDE_B } from '@lga/shared'
+import { NO_SLOT, SIDE_B, SIDE_C, SIDE_D } from '@lga/shared'
 import type { SnapshotView } from '@lga/shared'
 import type { BattleArenaConfig } from '../../config/index.js'
 import { matchStateFromIndex, nukeTypeFromIndex, sideFromIndex } from '../../snapshot.js'
@@ -34,6 +34,10 @@ export type RoundDot = 'a' | 'b' | 'current' | 'empty'
 export interface ScoreBarModel {
   a: ScoreSideModel
   b: ScoreSideModel
+  c?: ScoreSideModel
+  d?: ScoreSideModel
+  sideCount: 2 | 4
+  sides: ScoreSideModel[]
   killsToWin: number
   roundNumber: number
   bestOf: number
@@ -57,29 +61,90 @@ function roundDots(bestOf: number, wonA: number, wonB: number, current: number):
 }
 
 export function scoreBarModel(view: SnapshotView, config: BattleArenaConfig): ScoreBarModel {
-  const { roundScoreA, roundScoreB, roundsWonA, roundsWonB } = view.header
+  const {
+    roundScoreA,
+    roundScoreB,
+    roundScoreC,
+    roundScoreD,
+    roundsWonA,
+    roundsWonB,
+    roundsWonC,
+    roundsWonD,
+  } = view.header
+  const sideCount = config.gameplay.sideCount ?? 2
   const bestOf = config.gameplay.roundsBestOf
-  const decided = roundsWonA + roundsWonB
+  const decided =
+    roundsWonA +
+    roundsWonB +
+    (sideCount === 4 ? (roundsWonC ?? 0) + (roundsWonD ?? 0) : 0)
   const roundNumber = Math.min(decided + 1, bestOf)
 
+  const scores: { side: SideId; score: number }[] = [
+    { side: 'a', score: roundScoreA },
+    { side: 'b', score: roundScoreB },
+  ]
+  if (sideCount === 4) {
+    scores.push({ side: 'c', score: roundScoreC ?? 0 })
+    scores.push({ side: 'd', score: roundScoreD ?? 0 })
+  }
+  const maxScore = Math.max(...scores.map((s) => s.score))
+  const leaders = scores.filter((s) => s.score === maxScore && s.score > 0)
+  const isLeader = (side: SideId) => leaders.length === 1 && leaders[0]?.side === side
+
+  const a: ScoreSideModel = {
+    side: 'a',
+    name: config.sides.a.name,
+    color: config.sides.a.color,
+    score: roundScoreA,
+    leading: isLeader('a'),
+    roundDots: dots(bestOf, roundsWonA),
+  }
+
+  const b: ScoreSideModel = {
+    side: 'b',
+    name: config.sides.b.name,
+    color: config.sides.b.color,
+    score: roundScoreB,
+    leading: isLeader('b'),
+    roundDots: dots(bestOf, roundsWonB),
+  }
+
+  const c: ScoreSideModel | undefined =
+    sideCount === 4
+      ? {
+          side: 'c',
+          name: config.sides.c.name,
+          color: config.sides.c.color,
+          score: roundScoreC ?? 0,
+          leading: isLeader('c'),
+          roundDots: dots(bestOf, roundsWonC ?? 0),
+        }
+      : undefined
+
+  const d: ScoreSideModel | undefined =
+    sideCount === 4
+      ? {
+          side: 'd',
+          name: config.sides.d.name,
+          color: config.sides.d.color,
+          score: roundScoreD ?? 0,
+          leading: isLeader('d'),
+          roundDots: dots(bestOf, roundsWonD ?? 0),
+        }
+      : undefined
+
+  const sidesList = [a, b]
+  if (c) sidesList.push(c)
+  if (d) sidesList.push(d)
+
   return {
+    sideCount,
     dots: roundDots(bestOf, roundsWonA, roundsWonB, roundNumber),
-    a: {
-      side: 'a',
-      name: config.sides.a.name,
-      color: config.sides.a.color,
-      score: roundScoreA,
-      leading: roundScoreA > roundScoreB,
-      roundDots: dots(bestOf, roundsWonA),
-    },
-    b: {
-      side: 'b',
-      name: config.sides.b.name,
-      color: config.sides.b.color,
-      score: roundScoreB,
-      leading: roundScoreB > roundScoreA,
-      roundDots: dots(bestOf, roundsWonB),
-    },
+    a,
+    b,
+    c,
+    d,
+    sides: sidesList,
     killsToWin: config.gameplay.killsToWinRound,
     roundNumber,
     bestOf,
@@ -121,7 +186,7 @@ function rows(view: SnapshotView, roster: ReadonlyMap<number, RosterEntry>): Fig
   const out: FighterRow[] = []
   for (let i = 0; i < view.header.fighterCount; i++) {
     const fighter = view.fighters[i]
-    if (fighter === undefined || fighter.kills <= 0) continue
+    if (fighter === undefined) continue
     const entry = roster.get(fighter.slotIndex)
     if (entry === undefined) continue
     out.push({
@@ -151,7 +216,9 @@ export function mvp(
   view: SnapshotView,
   roster: ReadonlyMap<number, RosterEntry>,
 ): FighterRow | null {
-  return rows(view, roster)[0] ?? null
+  const top = rows(view, roster)[0]
+  if (top === undefined || top.kills <= 0) return null
+  return top
 }
 
 export interface VictoryModel {
@@ -160,9 +227,9 @@ export interface VictoryModel {
   name: string
   color: string
   mvp: FighterRow | null
-  totalKills: { a: number; b: number }
+  totalKills: Record<SideId, number>
   fighterCount: number
-  roundsWon: { a: number; b: number }
+  roundsWon: Record<SideId, number>
 }
 
 export function victoryModel(
@@ -175,12 +242,12 @@ export function victoryModel(
   if (view.header.roundWinner < 0) return null
 
   const side = sideFromIndex(view.header.roundWinner)
-  const totalKills = { a: 0, b: 0 }
+  const totalKills: Record<SideId, number> = { a: 0, b: 0, c: 0, d: 0 }
   for (let i = 0; i < view.header.fighterCount; i++) {
     const fighter = view.fighters[i]
     if (fighter === undefined) continue
-    if (fighter.side === SIDE_B) totalKills.b += fighter.kills
-    else totalKills.a += fighter.kills
+    const fSide = sideFromIndex(fighter.side)
+    totalKills[fSide] += fighter.kills
   }
 
   return {
@@ -191,18 +258,23 @@ export function victoryModel(
     mvp: mvp(view, roster),
     totalKills,
     fighterCount: view.header.fighterCount,
-    roundsWon: { a: view.header.roundsWonA, b: view.header.roundsWonB },
+    roundsWon: {
+      a: view.header.roundScoreA !== undefined ? view.header.roundsWonA : 0,
+      b: view.header.roundsWonB,
+      c: view.header.roundsWonC ?? 0,
+      d: view.header.roundsWonD ?? 0,
+    },
   }
 }
 
 /**
- * TOP GIFTER datang dari payload roster, BUKAN dari snapshot fighter.
+ * TOP 5 GIFTERS datang dari payload roster, BUKAN dari snapshot fighter.
  *
  * Dulu fungsi ini menyapu `view.fighters` dan membaca `fighter.giftCoins`, dan itu salah di
  * tiga cara sekaligus: angka itu dinolkan tiap match baru, ia hanya ada untuk orang yang
  * sudah punya fighter, dan gift PERTAMA dari penonton baru pun luput karena penjumlahannya
  * berjalan satu tick sebelum `ensureGifterJoined`. Engine sekarang menumpuk tally sesinya
- * sendiri dan menitipkan pemuncaknya di `RosterPayload.topGifter`; di sini tidak ada lagi
+ * sendiri dan menitipkan lima peringkatnya di `RosterPayload.topGifters`; di sini tidak ada lagi
  * yang perlu dihitung.
  */
 export type { SessionGifter } from '../../snapshot.js'

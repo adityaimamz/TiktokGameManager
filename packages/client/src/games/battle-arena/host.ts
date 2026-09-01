@@ -44,7 +44,7 @@ export class BattleArenaHost {
   private lastState: MatchState | null = null
   private published: Float32Array | null = null
   private readonly rosterBySlot = new Map<number, RosterEntry>()
-  private topGifter: SessionGifter | null = null
+  private topGifters: SessionGifter[] = []
 
   constructor(opts: BattleArenaHostOptions) {
     this.clock = opts.clock
@@ -93,7 +93,7 @@ export class BattleArenaHost {
     if (roster !== null) {
       this.rosterBySlot.clear()
       for (const entry of roster.entries) this.rosterBySlot.set(entry.slotIndex, entry)
-      this.topGifter = roster.topGifter
+      this.topGifters = roster.topGifters
       this.signals.publishRoster(roster)
     }
 
@@ -115,14 +115,14 @@ export class BattleArenaHost {
   }
 
   /**
-   * Penyumbang terbesar sesi, dari payload roster yang sama.
+   * Lima penyumbang terbesar sesi, dari payload roster yang sama.
    *
    * Menumpang di sini supaya tab pemilik membaca angka yang PERSIS sama dengan yang dikirim
    * ke overlay — aturan yang sama yang membuat tab pemilik menggambar dari snapshot-nya
    * sendiri alih-alih langsung dari state.
    */
-  get currentTopGifter(): SessionGifter | null {
-    return this.topGifter
+  get currentTopGifters(): readonly SessionGifter[] {
+    return this.topGifters
   }
 
   dispose(): void {

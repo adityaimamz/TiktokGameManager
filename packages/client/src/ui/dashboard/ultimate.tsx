@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
-import type { NukeType } from '../../games/battle-arena/config/index.js'
+import type { NukeType, SideCount } from '../../games/battle-arena/config/index.js'
+import { activeSides } from '../../games/battle-arena/types.js'
 import type { SideId } from '../../games/battle-arena/types.js'
 import { Icon } from './icons.js'
 import type { IconName } from './icons.js'
@@ -38,8 +39,10 @@ export interface UltimateButtonsProps {
   side: SideId
   onSide: (side: SideId) => void
   onFire: (kind: UltimateKind) => void
+  /** Jumlah sisi aktif (2 atau 4). */
+  sideCount?: SideCount
   /** Nama sisi dari config creator, supaya tombol sasaran menyebut nama yang benar. */
-  sideNames: { a: string; b: string }
+  sideNames: Record<SideId, string>
   /** Jenis yang tersimpan di config, ditandai supaya creator tahu mana yang terakhir dipakai. */
   currentKind: UltimateKind
 }
@@ -52,6 +55,8 @@ export interface UltimateButtonsProps {
  * uji yang hanya disentuh saat menyiapkan sesi.
  */
 export function UltimateButtons(props: UltimateButtonsProps): ReactElement {
+  const sides = activeSides(props.sideCount ?? 2)
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -60,7 +65,7 @@ export function UltimateButtons(props: UltimateButtonsProps): ReactElement {
         {/* Ultimate selalu punya SASARAN. Tanpa pilihan ini tombolnya berbohong soal siapa
             yang kena — dan yang benar-benar terkena damage adalah sisi yang dipilih di sini. */}
         <div className="flex flex-none gap-1" role="group" aria-label="Sasaran ultimate">
-          {(['a', 'b'] as const).map((side) => (
+          {sides.map((side) => (
             <button
               className="seg-btn px-2.5 py-1 text-[10px]"
               key={side}

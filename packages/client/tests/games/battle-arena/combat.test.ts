@@ -135,6 +135,45 @@ describe('target relatif', () => {
     expect(state.pendingUltimates[0]?.targetSide).toBe('b')
   })
 
+  it('nuke dengan enemySide pada mode 4 kubu mengincar kuadran musuh yang paling ramai', () => {
+    const { deps, state, add } = setup()
+    deps.config.gameplay.sideCount = 4
+    add('andi', 'a')
+    // Side B: 1 fighter, Side C: 3 fighters, Side D: 0 fighters
+    add('b1', 'b')
+    add('c1', 'c')
+    add('c2', 'c')
+    add('c3', 'c')
+
+    applyAction(
+      createBattleAction({
+        type: 'nuke',
+        target: 'enemySide:tiktok:andi',
+        actor: { platform: 'tiktok', username: 'andi', avatarUrl: null },
+      }),
+      deps,
+    )
+
+    expect(state.pendingUltimates[0]?.targetSide).toBe('c')
+  })
+
+  it('randomEnemy pada mode 4 kubu memilih salah satu lawan dari seluruh kubu musuh', () => {
+    const { deps, add } = setup()
+    deps.config.gameplay.sideCount = 4
+    add('andi', 'a')
+    const b = add('b1', 'b')
+    const c = add('c1', 'c')
+    const d = add('d1', 'd')
+    b.hp = 10
+    c.hp = 10
+    d.hp = 10
+
+    applyAction(heal('randomEnemy:tiktok:andi', 'andi'), deps)
+
+    const healedCount = [b.hp, c.hp, d.hp].filter((hp) => hp === 20).length
+    expect(healedCount).toBe(1)
+  })
+
   it('nuke dengan target acak tetap mendapat sebuah sisi, bukan dibuang', () => {
     const { deps, state, add, events } = setup()
     add('andi', 'a')
@@ -377,7 +416,14 @@ describe('applyDamage', () => {
   it('leaves the score alone when nobody gets the credit', () => {
     const { deps, state, add } = setup()
     applyDamage(add('b1', 'b', 75, 50), 500, null, deps)
-    expect(state.roundScore).toEqual({ a: 0, b: 0 })
+    expect(state.roundScore).toEqual({ a: 0, b: 0, c: 0, d: 0 })
+  })
+
+  it('credits the side when sideOverride is provided even without an attacker fighter', () => {
+    const { deps, state, add } = setup()
+    applyDamage(add('b1', 'b', 75, 50), 500, null, deps, 'a')
+    expect(state.roundScore.a).toBe(1)
+    expect(state.roundScore.b).toBe(0)
   })
 
   it('makes everyone who was chasing the dead fighter re-acquire', () => {

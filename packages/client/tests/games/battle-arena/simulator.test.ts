@@ -263,8 +263,11 @@ describe('BattleArenaSimulator rejoins', () => {
 })
 
 describe('gift simulator', () => {
-  it('mengirim gift dari GIFT_SEED dengan koin sesuai daftarnya', () => {
-    const { messages, tick, connect } = setup((c) => (c.simulation.giftsPerSecond = 5))
+  it('mengirim gift dari GIFT_SEED dengan koin sesuai daftarnya saat fallback', () => {
+    const { messages, tick, connect } = setup((c) => {
+      c.simulation.giftsPerSecond = 5
+      for (const t of c.triggers) if (t.when.kind === 'gift') t.enabled = false
+    })
     connect()
     tick(4000)
 
@@ -276,4 +279,87 @@ describe('gift simulator', () => {
       expect(gift.giftCoins).toBe((entry?.coins ?? 0) * gift.giftCount)
     }
   })
+
+  it('menyesuaikan gift yang dikirim dengan rule action triggers yang aktif', () => {
+    const { messages, tick, connect } = setup((c) => {
+      c.simulation.giftsPerSecond = 5
+      c.triggers = [
+        {
+          id: 'gift-laser',
+          label: 'Sunglasses Laser',
+          enabled: true,
+          when: { kind: 'gift', giftNames: ['Sunglasses', 'Hand Hearts'], minCount: 1 },
+          then: { actionType: 'nuke', target: 'enemySide', value: 50 },
+          legend: { show: true, caption: 'LASER', icon: 'gift' },
+        },
+        {
+          id: 'gift-disabled',
+          label: 'Rose Heal Disabled',
+          enabled: false,
+          when: { kind: 'gift', giftNames: ['Rose'], minCount: 1 },
+          then: { actionType: 'heal', target: 'sender', value: 50 },
+          legend: { show: true, caption: 'HEAL', icon: 'gift' },
+        },
+      ]
+    })
+    connect()
+    tick(4000)
+
+    const gifts = messages.filter((m) => m.kind === 'giftEvent')
+    expect(gifts.length).toBeGreaterThan(0)
+    for (const gift of gifts) {
+      expect(['Sunglasses', 'Hand Hearts']).toContain(gift.giftName)
+      expect(gift.giftName).not.toBe('Rose')
+    }
+  })
+
+  it('memenuhi minCount dari rule gift yang aktif', () => {
+    const { messages, tick, connect } = setup((c) => {
+      c.simulation.giftsPerSecond = 5
+      c.triggers = [
+        {
+          id: 'gift-barrage',
+          label: 'Big gift barrage',
+          enabled: true,
+          when: { kind: 'gift', giftNames: ['Doughnut'], minCount: 5 },
+          then: { actionType: 'damage', target: 'sideB', value: 20 },
+          legend: { show: true, caption: 'BARRAGE', icon: 'gift' },
+        },
+      ]
+    })
+    connect()
+    tick(4000)
+
+    const gifts = messages.filter((m) => m.kind === 'giftEvent')
+    expect(gifts.length).toBeGreaterThan(0)
+    for (const gift of gifts) {
+      expect(gift.giftName).toBe('Doughnut')
+      expect(gift.giftCount).toBeGreaterThanOrEqual(5)
+      expect(gift.giftCoins).toBe(30 * gift.giftCount)
+    }
+  })
 })
+
+describe('4-side simulation', () => {
+  it('joins across all 4 active sides and respects 4-side arena capacity', () => {
+    const { messages, tick, connect, config } = setup((c) => {
+      c.gameplay.sideCount = 4
+      c.gameplay.maxFightersPerSide = 5
+      c.sides.c.keyword = 'yamal'
+      c.sides.d.keyword = 'mbappe'
+    })
+    connect()
+    tick(20_000)
+
+    const joinTexts = messages
+      .filter((m) => m.kind === 'textMessageEvent')
+      .map((m) => m.text)
+
+    // With 4 sides, join messages should include keywords from all 4 sides
+    const keywords = [config.sides.a.keyword, config.sides.b.keyword, config.sides.c.keyword, config.sides.d.keyword]
+    for (const kw of keywords) {
+      expect(joinTexts.includes(kw)).toBe(true)
+    }
+  })
+})
+

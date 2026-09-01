@@ -1,6 +1,6 @@
 import type { Vec2 } from '../../framework/entity/entity.js'
 import type { Rng } from '../../framework/rng.js'
-import { FIGHTER_EDGE_MARGIN, FIGHTER_HIT_RADIUS, sideHalfBounds } from './arena.js'
+import { FIGHTER_EDGE_MARGIN, FIGHTER_HIT_RADIUS, sideBounds } from './arena.js'
 import type { SideId } from './types.js'
 
 /** Percobaan penempatan sebelum jatuh ke kandidat paling lapang (Req 6 AC4). */
@@ -16,6 +16,7 @@ export interface Occupant {
 export interface SpawnPositionOptions {
   rng: Rng
   side: SideId
+  sideCount?: 2 | 4
   /** Posisi seluruh fighter yang sudah ada di arena — kedua sisi, bukan hanya sisi ini. */
   occupied: readonly Occupant[]
   /** Radius fighter yang sedang ditempatkan; ia sendiri bisa saja sudah besar. */
@@ -57,7 +58,7 @@ export function findSpawnPosition(opts: SpawnPositionOptions): Vec2 {
   const attempts = opts.attempts ?? SPAWN_ATTEMPTS
   const radius = opts.radius ?? FIGHTER_HIT_RADIUS
   const clearance = opts.clearance ?? FIGHTER_EDGE_MARGIN
-  const bounds = sideHalfBounds(opts.side, radius / FIGHTER_HIT_RADIUS)
+  const bounds = sideBounds(opts.side, opts.sideCount ?? 2, radius / FIGHTER_HIT_RADIUS)
 
   let best: Vec2 = { x: bounds.minX, y: bounds.minY }
   let bestClearance = Number.NEGATIVE_INFINITY

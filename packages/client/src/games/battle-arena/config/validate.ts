@@ -19,6 +19,7 @@ import {
   NUKE_TYPES,
   NUMERIC_RANGES,
   ROUNDS_BEST_OF_VALUES,
+  SIDE_COUNTS,
   SIDE_NAME_MAX_LENGTH,
   SOUND_EVENTS,
   SOUND_VOLUME_RANGE,
@@ -104,6 +105,8 @@ const TARGET_KINDS = [
   'sender',
   'sideA',
   'sideB',
+  'sideC',
+  'sideD',
   'all',
   'ownSide',
   'enemySide',
@@ -127,7 +130,7 @@ function validateRule(
 
   let when: TriggerRule['when']
   if (whenRaw.kind === 'comment') {
-    when = { kind: 'comment', matchSide: oneOf<SideId>(whenRaw.matchSide, ['a', 'b'], 'a') }
+    when = { kind: 'comment', matchSide: oneOf<SideId>(whenRaw.matchSide, ['a', 'b', 'c', 'd'], 'a') }
   } else if (whenRaw.kind === 'like') {
     // D3: ambang like selalu mengikuti config, bukan angka yang tersimpan di rule.
     when = { kind: 'like', everyNLikes: likeThreshold }
@@ -313,11 +316,14 @@ export function validateSection<K extends keyof BattleArenaConfig>(
       return {
         a: validateSide(pick(raw, 'a'), defaults.sides.a),
         b: validateSide(pick(raw, 'b'), defaults.sides.b),
+        c: validateSide(pick(raw, 'c'), defaults.sides.c),
+        d: validateSide(pick(raw, 'd'), defaults.sides.d),
       } as BattleArenaConfig[K]
     }
     case 'gameplay': {
       const g = defaults.gameplay
       return {
+        sideCount: oneOf(pick(raw, 'sideCount'), SIDE_COUNTS, g.sideCount),
         winMode: oneOf(pick(raw, 'winMode'), ['firstToNKills'] as const, g.winMode),
         roundsBestOf: oneOf(pick(raw, 'roundsBestOf'), ROUNDS_BEST_OF_VALUES, g.roundsBestOf),
         killsToWinRound: num(
@@ -544,7 +550,10 @@ export function validateNumericRange(
   range: NumericRange,
   raw: unknown,
 ): NumericInputResult {
-  const error = `${label} must be ${range.integer ? 'a whole number ' : ''}between ${range.min} and ${range.max}`
+  const error =
+    range.max === Infinity
+      ? `${label} must be ${range.integer ? 'a whole number ' : ''}at least ${range.min}`
+      : `${label} must be ${range.integer ? 'a whole number ' : ''}between ${range.min} and ${range.max}`
 
   const value = typeof raw === 'string' ? Number(raw.trim()) : raw
   if (typeof value !== 'number' || !Number.isFinite(value)) return { ok: false, error }

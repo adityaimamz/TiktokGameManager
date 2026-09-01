@@ -5,6 +5,9 @@ import type { SideId } from '../types.js'
 /** Union satu anggota: mode menang baru bisa ditambah tanpa merusak config tersimpan. */
 export type WinMode = 'firstToNKills'
 
+export type SideCount = 2 | 4
+export const SIDE_COUNTS: readonly SideCount[] = [2, 4]
+
 export type RoundsBestOf = 1 | 3 | 5 | 7
 export const ROUNDS_BEST_OF_VALUES: readonly RoundsBestOf[] = [1, 3, 5, 7]
 
@@ -201,6 +204,7 @@ export interface UiConfig {
 }
 
 export interface GameplayConfig {
+  sideCount: SideCount
   winMode: WinMode
   roundsBestOf: RoundsBestOf
   killsToWinRound: number
@@ -299,7 +303,7 @@ export interface OverlayConfig {
 export interface BattleArenaConfig {
   schemaVersion: number
   ui: UiConfig
-  sides: { a: SideConfig; b: SideConfig }
+  sides: Record<SideId, SideConfig>
   gameplay: GameplayConfig
   likes: LikesConfig
   triggers: TriggerRule[]
@@ -332,7 +336,7 @@ export const NUMERIC_RANGES = {
   'gameplay.baseDamage': { min: 1, max: 9999, integer: true },
   'gameplay.attackIntervalSec': { min: 0.5, max: 30, integer: false },
   'gameplay.hpGainedPerGrow': { min: 1, max: 9999, integer: true },
-  'gameplay.nuke.damage': { min: 10, max: 500, integer: true },
+  'gameplay.nuke.damage': { min: 10, max: Infinity, integer: true },
   'gameplay.nuke.durationMs': { min: 1000, max: 3000, integer: true },
   'gameplay.nuke.hardCap': { min: 1, max: 12, integer: true },
   'gameplay.nuke.calloutHoldMs': { min: 500, max: 5000, integer: true },

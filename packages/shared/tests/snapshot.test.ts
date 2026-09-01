@@ -31,7 +31,7 @@ const padSlots = (slots: readonly number[]): number[] => {
  */
 const sample = (tick = 7): Float32Array => {
   const buf = new Float32Array(snapshotLength(1, 1, 1))
-  buf.set([tick, 1000, 3, 2, 1, 1, 0, 1, 1, 1, -1], 0)
+  buf.set([tick, 1000, 3, 2, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, -1, 0], 0)
   buf.set([4, 25, 60, 80, 200, 0, 1, 1.57, 9, 3], SNAPSHOT_HEADER_LENGTH)
   buf.set([30, 40, 1.5, 0, 0, 150], SNAPSHOT_HEADER_LENGTH + FIGHTER_STRIDE)
   buf.set([2, 55, 20, 0.5, 1.25, 12], SNAPSHOT_HEADER_LENGTH + FIGHTER_STRIDE + PROJECTILE_STRIDE)
@@ -55,8 +55,12 @@ describe('decodeSnapshot', () => {
     expect(view.header.matchState).toBe(3)
     expect(view.header.roundScoreA).toBe(2)
     expect(view.header.roundScoreB).toBe(1)
+    expect(view.header.roundScoreC).toBe(0)
+    expect(view.header.roundScoreD).toBe(0)
     expect(view.header.roundsWonA).toBe(1)
     expect(view.header.roundsWonB).toBe(0)
+    expect(view.header.roundsWonC).toBe(0)
+    expect(view.header.roundsWonD).toBe(0)
     expect(view.header.fighterCount).toBe(1)
     expect(view.header.projectileCount).toBe(1)
     expect(view.header.effectCount).toBe(1)
@@ -65,7 +69,7 @@ describe('decodeSnapshot', () => {
 
   it('reads the round winner when a round has been decided', () => {
     const buf = sample()
-    buf[10] = 1
+    buf[14] = 1
     expect(decodeSnapshot(buf).header.roundWinner).toBe(1)
   })
 
@@ -150,7 +154,7 @@ describe('SnapshotHistory', () => {
 describe('koin gift di record fighter', () => {
   it('membawa giftCoins melewati round-trip', () => {
     const buf = new Float32Array(snapshotLength(1, 0, 0))
-    buf[7] = 1
+    buf[11] = 1
     buf[SNAPSHOT_HEADER_LENGTH + 9] = 4 // kills
     buf[SNAPSHOT_HEADER_LENGTH + 10] = 1250 // giftCoins
 
@@ -169,7 +173,7 @@ describe('koin gift di record fighter', () => {
 describe('bagian ultimate', () => {
   it('menyalakan header dan men-decode record utuh', () => {
     const buf = new Float32Array(snapshotLength(0, 0, 0, 1))
-    buf[11] = 1 // ultimateCount
+    buf[15] = 1 // ultimateCount
     buf.set(
       [3, 1, 2, 20, 40, 75, 50, 0.5, 4, 180, 0, 6, 0.02, 2600, ...padSlots([7, 3])],
       SNAPSHOT_HEADER_LENGTH,
@@ -204,7 +208,7 @@ describe('bagian ultimate', () => {
    */
   it('mengembalikan slot yang tidak terpakai sebagai NO_SLOT, bukan 0', () => {
     const buf = new Float32Array(snapshotLength(0, 0, 0, 1))
-    buf[11] = 1
+    buf[15] = 1
     buf.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...padSlots([7, 3])], SNAPSHOT_HEADER_LENGTH)
 
     const decoded = decodeSnapshot(buf).ultimates[0]
@@ -215,7 +219,7 @@ describe('bagian ultimate', () => {
 
   it('memakai ulang array targetSlots antar-decode, tanpa alokasi baru', () => {
     const buf = new Float32Array(snapshotLength(0, 0, 0, 1))
-    buf[11] = 1
+    buf[15] = 1
     const view = decodeSnapshot(buf)
     const first = view.ultimates[0]?.targetSlots
     decodeSnapshot(buf, view)
@@ -237,7 +241,7 @@ describe('bagian ultimate', () => {
   })
 
   it('stride terkunci', () => {
-    expect(SNAPSHOT_HEADER_LENGTH).toBe(12)
+    expect(SNAPSHOT_HEADER_LENGTH).toBe(16)
     expect(ULTIMATE_STRIDE).toBe(24)
     expect(ULTIMATE_MAX_TARGETS).toBe(10)
   })

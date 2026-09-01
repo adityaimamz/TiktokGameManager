@@ -75,4 +75,19 @@ describe('GameSettings', () => {
     expect(screen.queryByLabelText('Interface language')).toBeNull()
     expect(screen.queryByLabelText('Overlay mode')).toBeNull()
   })
+
+  it('menyunting jumlah kubu 2 / 4 dan menampilkan Side C & D pada mode 4 kubu', async () => {
+    const onConfig = setup()
+    expect(screen.queryByLabelText('Nama Side C')).toBeNull()
+    expect(screen.queryByLabelText('Nama Side D')).toBeNull()
+
+    await userEvent.selectOptions(screen.getByLabelText('Jumlah kubu'), '4')
+    expect(onConfig.mock.calls[0]?.[0].gameplay.sideCount).toBe(4)
+
+    const config4 = defaultConfig()
+    config4.gameplay.sideCount = 4
+    render(<GameSettings config={config4} onConfig={() => {}} open onOpenChange={() => {}} />)
+    expect(screen.getByLabelText('Nama Side C')).toBeTruthy()
+    expect(screen.getByLabelText('Nama Side D')).toBeTruthy()
+  })
 })

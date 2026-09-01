@@ -28,7 +28,7 @@ import {
 import { markUltimatesStale } from './ultimate.js'
 import type { BattleArenaState } from './state.js'
 import { BattleArenaTriggers } from './triggers.js'
-import { fighterKey } from './types.js'
+import { activeSides, fighterKey } from './types.js'
 import type { ActorIdentity, SideId } from './types.js'
 
 /**
@@ -151,9 +151,20 @@ export class BattleArenaEngine
     return this.config
   }
 
-  /** Berlaku mulai evaluasi berikutnya, tanpa restart match (Req 16 AC5). */
+  /** Berlaku mulai evaluasi berikutnya; mereset match jika jumlah kubu berubah. */
   setConfig(config: BattleArenaConfig): void {
+    const prevSideCount = this.config.gameplay.sideCount ?? 2
+    const nextSideCount = config.gameplay.sideCount ?? 2
     this.config = config
+
+    if (prevSideCount !== nextSideCount) {
+      this.reset()
+      this.start()
+      const active = activeSides(nextSideCount)
+      const validWaitlist = this.waitlist.filter((entry) => active.includes(entry.side))
+      this.waitlist.length = 0
+      this.waitlist.push(...validWaitlist)
+    }
   }
 
   start(): void {
@@ -434,10 +445,14 @@ export class BattleArenaEngine
   }
 
   private hasFightersOnBothSides(): boolean {
-    return (
-      this.state.fighters.countOnSide('a', { aliveOnly: true }) > 0 &&
-      this.state.fighters.countOnSide('b', { aliveOnly: true }) > 0
-    )
+    const active = activeSides(this.config.gameplay.sideCount)
+    let sidesWithFighters = 0
+    for (const s of active) {
+      if (this.state.fighters.countOnSide(s, { aliveOnly: true }) > 0) {
+        sidesWithFighters++
+      }
+    }
+    return sidesWithFighters >= 2
   }
 
   private enterCountdown(): boolean {

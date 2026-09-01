@@ -137,6 +137,19 @@ describe('BattleArenaEngine lifecycle', () => {
     expect(engine.matchState).toBe('battle')
   })
 
+  it('pada mode 4 kubu, maju ke countdown bila minimal 2 kubu aktif terisi', () => {
+    const config = fastConfig()
+    config.gameplay = { ...config.gameplay, sideCount: 4 }
+    const { engine, join, step } = setup(config)
+    engine.start()
+    join('andi', 'a')
+    step()
+    expect(engine.matchState).toBe('waitingFighters')
+    join('cici', 'c')
+    step()
+    expect(engine.matchState).toBe('countdown')
+  })
+
   it('ticks the simulation once the battle starts', () => {
     const { engine, join, step, stepUntil } = setup()
     engine.start()
@@ -200,7 +213,7 @@ describe('BattleArenaEngine rounds', () => {
 
     const state = engine.getState()
     expect(state.roundIndex).toBe(2)
-    expect(state.roundScore).toEqual({ a: 0, b: 0 })
+    expect(state.roundScore).toEqual({ a: 0, b: 0, c: 0, d: 0 })
     expect(state.roundWinner).toBeNull()
     expect(state.fighters.list().every((f) => f.alive && f.hp === f.maxHp)).toBe(true)
   })
@@ -244,7 +257,7 @@ describe('BattleArenaEngine rounds', () => {
     engine.update()
     expect(engine.matchState).toBe('countdown')
     expect(engine.getState().fighters.count).toBe(before)
-    expect(engine.getState().roundsWon).toEqual({ a: 0, b: 0 })
+    expect(engine.getState().roundsWon).toEqual({ a: 0, b: 0, c: 0, d: 0 })
     for (const f of engine.getState().fighters.list()) expect(f.kills).toBe(0)
   })
 
@@ -639,3 +652,38 @@ describe('ultimate saat ronde berakhir (Plan 6a)', () => {
     expect(state.activeUltimates).toHaveLength(0)
   })
 })
+
+describe('BattleArenaEngine sideCount changes', () => {
+  beforeEach(() => resetEntityIds())
+
+  it('resets arena and removes inactive side fighters when switching from 4 sides to 2 sides', () => {
+    const config4 = fastConfig()
+    config4.gameplay.sideCount = 4
+    const { engine, join, step } = setup(config4)
+    engine.start()
+
+    join('alice', 'a')
+    join('bob', 'b')
+    join('charlie', 'c')
+    join('dave', 'd')
+    step(5)
+
+    const state = engine.getState()
+    expect(state.fighters.countOnSide('a')).toBe(1)
+    expect(state.fighters.countOnSide('b')).toBe(1)
+    expect(state.fighters.countOnSide('c')).toBe(1)
+    expect(state.fighters.countOnSide('d')).toBe(1)
+
+    // Switch to 2 sides
+    const config2 = fastConfig()
+    config2.gameplay.sideCount = 2
+    engine.setConfig(config2)
+    step(1)
+
+    expect(state.fighters.countOnSide('c')).toBe(0)
+    expect(state.fighters.countOnSide('d')).toBe(0)
+    expect(state.fighters.count).toBe(0)
+    expect(engine.matchState).toBe('waitingFighters')
+  })
+})
+

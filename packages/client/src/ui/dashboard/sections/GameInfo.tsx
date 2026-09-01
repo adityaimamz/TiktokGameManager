@@ -56,11 +56,20 @@ export function GameInfo(props: GameInfoProps): ReactElement {
         <span className="chip">Ronde {view.roundLabel}</span>
       </div>
 
-      <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-        <Readout side={view.a} align="left" />
-        <span className="pb-1 font-data text-xs font-bold tracking-[0.1em] text-faint">VS</span>
-        <Readout side={view.b} align="right" />
-      </div>
+      {view.sideCount === 4 && view.c && view.d ? (
+        <div className="relative grid grid-cols-4 items-center gap-2">
+          <Readout side={view.a} align="left" />
+          <Readout side={view.b} align="left" />
+          <Readout side={view.c} align="left" />
+          <Readout side={view.d} align="left" />
+        </div>
+      ) : (
+        <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+          <Readout side={view.a} align="left" />
+          <span className="pb-1 font-data text-xs font-bold tracking-[0.1em] text-faint">VS</span>
+          <Readout side={view.b} align="right" />
+        </div>
+      )}
 
       {/*
         * Bar DOMINASI, bukan bar skor: lebarnya pangsa total HP yang masih berdiri, jadi ia

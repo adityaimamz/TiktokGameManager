@@ -23,7 +23,7 @@ describe('defaultConfig', () => {
       legend: { show: false, caption: '', icon: '' },
     })
     expect(b.sides.a.name).not.toBe('mutated')
-    expect(b.triggers).toHaveLength(6)
+    expect(b.triggers).toHaveLength(8)
   })
 
   it('uses the documented gameplay defaults', () => {
@@ -63,18 +63,26 @@ describe('defaultConfig', () => {
 
   it('ships one join rule per side plus a grow rule, all enabled', () => {
     const rules = defaultConfig().triggers
-    expect(rules.slice(0, 3).map((r) => r.id)).toEqual(['join-a', 'join-b', 'grow-hp'])
-    expect(rules.slice(0, 3).every((r) => r.enabled)).toBe(true)
+    expect(rules.slice(0, 5).map((r) => r.id)).toEqual([
+      'join-a',
+      'join-b',
+      'join-c',
+      'join-d',
+      'grow-hp',
+    ])
+    expect(rules.slice(0, 5).every((r) => r.enabled)).toBe(true)
     expect(rules[0]?.when).toEqual({ kind: 'comment', matchSide: 'a' })
     expect(rules[0]?.then).toEqual({ actionType: 'spawn', target: 'sideA', value: 0 })
-    expect(rules[2]?.when).toEqual({ kind: 'like', everyNLikes: 10 })
-    expect(rules[2]?.then.actionType).toBe('grow')
+    expect(rules[2]?.when).toEqual({ kind: 'comment', matchSide: 'c' })
+    expect(rules[2]?.then).toEqual({ actionType: 'spawn', target: 'sideC', value: 0 })
+    expect(rules[4]?.when).toEqual({ kind: 'like', everyNLikes: 10 })
+    expect(rules[4]?.then.actionType).toBe('grow')
   })
 
   it('ships three gift examples that are all switched off', () => {
     const rules = defaultConfig().triggers
-    expect(rules.slice(3).map((r) => r.id)).toEqual(['gift-heal', 'gift-hasten', 'gift-barrage'])
-    expect(rules.slice(3).every((r) => !r.enabled)).toBe(true)
+    expect(rules.slice(5).map((r) => r.id)).toEqual(['gift-heal', 'gift-hasten', 'gift-barrage'])
+    expect(rules.slice(5).every((r) => !r.enabled)).toBe(true)
   })
 
   it('has an entry for every effect type and every sound event', () => {

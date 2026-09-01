@@ -1,5 +1,5 @@
 import { aiPhase } from './ai.js'
-import { ARENA_ASPECT, TICK_MS, clampToSideHalf, fighterScale } from './arena.js'
+import { ARENA_ASPECT, TICK_MS, clampToSideZone, fighterScale } from './arena.js'
 import { applyDamage, combatPhase, freezeUltimateOrigins } from './combat.js'
 import type { CombatDeps } from './combat.js'
 import { projectilePhase, retireProjectiles, steerProjectiles } from './projectiles.js'
@@ -34,12 +34,13 @@ export type TickDeps = CombatDeps
  */
 export function physicsPhase(deps: TickDeps): void {
   const baseHp = deps.config.gameplay.baseHp
+  const sideCount = deps.config.gameplay.sideCount
 
   deps.state.fighters.forEach((fighter) => {
     if (!fighter.alive) return
     fighter.position.x += fighter.velocity.x
     fighter.position.y += fighter.velocity.y
-    clampToSideHalf(fighter.position, fighter.side, fighterScale(fighter.hp, baseHp))
+    clampToSideZone(fighter.position, fighter.side, sideCount, fighterScale(fighter.hp, baseHp))
   })
 
   steerProjectiles(deps.state.projectiles, deps.state.fighters)
@@ -108,7 +109,7 @@ export function runTick(deps: TickDeps): void {
     baseHp: deps.config.gameplay.baseHp,
     onHit: (projectile, target) => {
       const owner = deps.state.fighters.get(projectile.ownerKey) ?? null
-      applyDamage(target, projectile.damage, owner, deps)
+      applyDamage(target, projectile.damage, owner, deps, projectile.ownerSide)
     },
   })
 

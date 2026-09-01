@@ -474,7 +474,7 @@ describe('pendaratan ultimate (Plan 6a)', () => {
 
   it('mencatat killCount dan totalDamage lalu menerbitkan ultimateLanded', () => {
     const { deps, state, events, add, fire } = ultimateSetup()
-    add('andi', 'a', 25, 50)
+    const andi = add('andi', 'a', 25, 50)
     const enemy = add('cici', 'b', 75, 50)
     enemy.hp = 10
     fire('andi', 'b')
@@ -485,6 +485,8 @@ describe('pendaratan ultimate (Plan 6a)', () => {
     expect(landed).toHaveLength(1)
     expect(landed[0]).toMatchObject({ gifterKey: 'tiktok:andi', killCount: 1, totalDamage: 10 })
     expect(state.activeUltimates[0]?.killCount).toBe(1)
+    expect(andi.kills).toBe(1)
+    expect(state.roundScore.a).toBe(1)
   })
 
   it('korban yang mati sebelum impact tidak kena damage anumerta', () => {

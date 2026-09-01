@@ -6,13 +6,7 @@ import type { RoundDot, ScoreBarModel, ScoreSideModel } from './view-model.js'
 /**
  * Papan skor di zona atas panggung (§9.0).
  *
- * Nama sisi di tepi, dua angka besar di tengah. Semua ukuran lewat `scaled()` supaya papan
- * ini menyusut bersama panggung, bukan patah saat kecil.
- *
- * Lencana huruf A/B dan jumlah fighter pernah menemani nama, keduanya dibuang atas keputusan
- * creator: zona atas cuma 14% tinggi panggung dan sudah dipakai skor, dots, dan caption ronde,
- * sementara warna sisi sudah menjawab pertanyaan yang sama dengan lencana. Jumlah fighter tetap
- * terbaca di dashboard.
+ * Mendukung 2 kubu dan 4 kubu (FFA 4 sudut).
  */
 function SideBlock({
   model,
@@ -44,8 +38,6 @@ function SideBlock({
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
-          // Kapital lewat CSS, bukan lewat .toUpperCase(): nama yang creator ketik tetap
-          // utuh di DOM, jadi pembaca layar dan pencarian teks masih menemukannya.
           textTransform: 'uppercase',
         }}
       >
@@ -100,33 +92,100 @@ export function ScoreBar({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        gap: scaled(layout, 12),
+        gap: scaled(layout, model.sideCount === 4 ? 8 : 12),
         padding: `0 ${scaled(layout, 22)}px`,
         boxSizing: 'border-box',
         color: '#fff',
         background: 'linear-gradient(180deg,rgba(6,8,20,.94),rgba(6,8,20,.30))',
       }}
     >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center',
-          gap: scaled(layout, 14),
-        }}
-      >
-        <SideBlock model={model.a} layout={layout} align="left" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: scaled(layout, 18) }}>
-          <span data-testid="score-a" style={score(model.a)}>
-            {model.a.score}
-          </span>
-          <span style={{ fontSize: scaled(layout, 24), color: 'rgba(232,236,248,.30)' }}>:</span>
-          <span data-testid="score-b" style={score(model.b)}>
-            {model.b.score}
-          </span>
+      {model.sideCount === 4 ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            alignItems: 'center',
+            gap: scaled(layout, 12),
+          }}
+        >
+          {model.sides.map((side) => (
+            <div
+              key={side.side}
+              data-testid={`side-block-${side.side}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: `${scaled(layout, 6)}px ${scaled(layout, 12)}px`,
+                background: side.leading
+                  ? 'rgba(255,255,255,0.08)'
+                  : 'rgba(255,255,255,0.03)',
+                borderRadius: scaled(layout, 8),
+                border: `1px solid ${side.leading ? side.color : 'rgba(255,255,255,0.12)'}`,
+                boxShadow: side.leading ? `0 0 ${scaled(layout, 14)}px ${side.color}50` : 'none',
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: scaled(layout, 6),
+                  color: side.color,
+                  fontSize: scaled(layout, 15),
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {side.leading ? (
+                  <span data-testid={`crown-${side.side}`} aria-label="leading">
+                    👑
+                  </span>
+                ) : null}
+                {side.name}
+              </div>
+              <span
+                data-testid={`score-${side.side}`}
+                style={{
+                  fontSize: scaled(layout, 32),
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  color: '#fff',
+                  textShadow: `0 0 ${scaled(layout, 20)}px ${side.color}`,
+                  marginLeft: scaled(layout, 8),
+                }}
+              >
+                {side.score}
+              </span>
+            </div>
+          ))}
         </div>
-        <SideBlock model={model.b} layout={layout} align="right" />
-      </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            alignItems: 'center',
+            gap: scaled(layout, 14),
+          }}
+        >
+          <SideBlock model={model.a} layout={layout} align="left" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: scaled(layout, 18) }}>
+            <span data-testid="score-a" style={score(model.a)}>
+              {model.a.score}
+            </span>
+            <span style={{ fontSize: scaled(layout, 24), color: 'rgba(232,236,248,.30)' }}>:</span>
+            <span data-testid="score-b" style={score(model.b)}>
+              {model.b.score}
+            </span>
+          </div>
+          <SideBlock model={model.b} layout={layout} align="right" />
+        </div>
+      )}
 
       <div
         style={{

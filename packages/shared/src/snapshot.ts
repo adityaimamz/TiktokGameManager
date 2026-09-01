@@ -9,7 +9,7 @@
  * warna sisi — dikirim terpisah sebagai JSON hanya saat berubah.
  */
 
-export const SNAPSHOT_HEADER_LENGTH = 12
+export const SNAPSHOT_HEADER_LENGTH = 16
 export const FIGHTER_STRIDE = 11
 export const PROJECTILE_STRIDE = 6
 export const EFFECT_STRIDE = 6
@@ -25,9 +25,11 @@ export const ULTIMATE_STRIDE = 24
  */
 export const ULTIMATE_MAX_TARGETS = 10
 
-/** Sisi disandikan sebagai angka; pemetaan ke 'a'/'b' urusan lapisan game. */
+/** Sisi disandikan sebagai angka; pemetaan ke 'a'/'b'/'c'/'d' urusan lapisan game. */
 export const SIDE_A = 0
 export const SIDE_B = 1
+export const SIDE_C = 2
+export const SIDE_D = 3
 
 /** Nilai targetSlot saat sebuah fighter tidak sedang menarget siapa pun. */
 export const NO_SLOT = -1
@@ -41,8 +43,12 @@ export interface SnapshotHeader {
   matchState: number
   roundScoreA: number
   roundScoreB: number
+  roundScoreC: number
+  roundScoreD: number
   roundsWonA: number
   roundsWonB: number
+  roundsWonC: number
+  roundsWonD: number
   fighterCount: number
   projectileCount: number
   effectCount: number
@@ -63,7 +69,7 @@ export interface SnapshotFighter {
   facingAngle: number
   targetSlot: number
   kills: number
-  /** Koin gift kumulatif viewer ini sepanjang match. Sumber kartu top gifter. */
+  /** Koin gift kumulatif viewer ini sepanjang match; bukan sumber papan top gifters sesi. */
   giftCoins: number
 }
 
@@ -183,8 +189,12 @@ export function createSnapshotView(): SnapshotView {
       matchState: 0,
       roundScoreA: 0,
       roundScoreB: 0,
+      roundScoreC: 0,
+      roundScoreD: 0,
       roundsWonA: 0,
       roundsWonB: 0,
+      roundsWonC: 0,
+      roundsWonD: 0,
       fighterCount: 0,
       projectileCount: 0,
       effectCount: 0,
@@ -212,13 +222,17 @@ export function decodeSnapshot(
   h.matchState = buf[2] ?? 0
   h.roundScoreA = buf[3] ?? 0
   h.roundScoreB = buf[4] ?? 0
-  h.roundsWonA = buf[5] ?? 0
-  h.roundsWonB = buf[6] ?? 0
-  h.fighterCount = buf[7] ?? 0
-  h.projectileCount = buf[8] ?? 0
-  h.effectCount = buf[9] ?? 0
-  h.roundWinner = buf[10] ?? NO_SIDE
-  h.ultimateCount = buf[11] ?? 0
+  h.roundScoreC = buf[5] ?? 0
+  h.roundScoreD = buf[6] ?? 0
+  h.roundsWonA = buf[7] ?? 0
+  h.roundsWonB = buf[8] ?? 0
+  h.roundsWonC = buf[9] ?? 0
+  h.roundsWonD = buf[10] ?? 0
+  h.fighterCount = buf[11] ?? 0
+  h.projectileCount = buf[12] ?? 0
+  h.effectCount = buf[13] ?? 0
+  h.roundWinner = buf[14] ?? NO_SIDE
+  h.ultimateCount = buf[15] ?? 0
 
   let offset = SNAPSHOT_HEADER_LENGTH
 

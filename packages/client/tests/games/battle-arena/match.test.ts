@@ -6,6 +6,7 @@ import { defaultConfig } from '../../../src/games/battle-arena/config/index.js'
 import type { BattleArenaConfig } from '../../../src/games/battle-arena/config/index.js'
 import { BattleArenaEngine } from '../../../src/games/battle-arena/engine.js'
 import { PracticeFighters } from '../../../src/games/battle-arena/practice-fighters.js'
+import type { SideId } from '../../../src/games/battle-arena/types.js'
 
 const FIGHTERS_PER_SIDE = 6
 const MAX_STEPS = 40_000
@@ -44,8 +45,8 @@ const join = (engine: BattleArenaEngine, side: 'a' | 'b', username: string): voi
 }
 
 interface MatchSummary {
-  winner: 'a' | 'b' | null
-  roundsWon: { a: number; b: number }
+  winner: SideId | null
+  roundsWon: Record<SideId, number>
   roundIndex: number
   steps: number
   fighters: { key: string; kills: number; deaths: number }[]

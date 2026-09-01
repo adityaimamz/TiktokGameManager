@@ -146,12 +146,13 @@ describe('topFighters', () => {
       defaultConfig(),
     )
 
-    expect(rows.map((row) => row.username)).toEqual(['budi', 'andi', 'cinta'])
+    expect(rows.map((row) => row.username)).toEqual(['budi', 'andi', 'cinta', 'dedi'])
   })
 
-  it('leaves out fighters who have not killed anyone', () => {
+  it('includes all fighters in the arena even before kills occur', () => {
     const rows = topFighters(view({}, fighters), roster({}, {}, {}, {}), defaultConfig())
-    expect(rows.every((row) => row.kills > 0)).toBe(true)
+    expect(rows).toHaveLength(4)
+    expect(rows[3]?.kills).toBe(0)
   })
 
   it('respects the configured entry count', () => {
@@ -237,9 +238,9 @@ describe('victoryModel', () => {
     expect(model?.kind).toBe('match')
     expect(model?.side).toBe('b')
     expect(model?.mvp?.username).toBe('budi')
-    expect(model?.totalKills).toEqual({ a: 5, b: 8 })
+    expect(model?.totalKills).toEqual({ a: 5, b: 8, c: 0, d: 0 })
     expect(model?.fighterCount).toBe(2)
-    expect(model?.roundsWon).toEqual({ a: 1, b: 2 })
+    expect(model?.roundsWon).toEqual({ a: 1, b: 2, c: 0, d: 0 })
   })
 
   it('says nothing rather than guessing when no round winner was recorded', () => {

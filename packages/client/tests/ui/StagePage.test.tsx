@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { SIDE_A, snapshotLength } from '@lga/shared'
+import { SIDE_A, SNAPSHOT_HEADER_LENGTH, snapshotLength } from '@lga/shared'
 import { GameSignals, MEDIA_TOPIC, SNAPSHOT_TOPIC } from '../../src/platform/signals/index.js'
 import { ALERT_DISPLAY_MS } from '../../src/ui/media/cue-queue.js'
 import type { AudioLike } from '../../src/ui/media/audio-channels.js'
@@ -15,8 +15,8 @@ afterEach(() => vi.restoreAllMocks())
 
 const snapshot = (scoreA: number): Float32Array => {
   const buf = new Float32Array(snapshotLength(1, 0, 0))
-  buf.set([1, 50, 3, scoreA, 0, 0, 0, 1, 0, 0, -1], 0)
-  buf.set([0, 25, 50, 80, 100, SIDE_A, 1, 0, -1, 0], 11)
+  buf.set([1, 50, 3, scoreA, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0], 0)
+  buf.set([0, 25, 50, 80, 100, SIDE_A, 1, 0, -1, 0], SNAPSHOT_HEADER_LENGTH)
   return buf
 }
 

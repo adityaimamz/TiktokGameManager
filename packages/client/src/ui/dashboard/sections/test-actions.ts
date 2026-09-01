@@ -1,7 +1,7 @@
 import type { SnapshotView } from '@lga/shared'
 import { createBattleAction, sideTarget } from '../../../games/battle-arena/actions.js'
 import type { BattleAction } from '../../../games/battle-arena/actions.js'
-import type { BattleArenaConfig } from '../../../games/battle-arena/config/index.js'
+import type { BattleArenaConfig, SideCount } from '../../../games/battle-arena/config/index.js'
 import type { RosterEntry } from '../../../games/battle-arena/snapshot.js'
 import { creatorActor } from '../../../games/battle-arena/triggers.js'
 import type { ActorIdentity, SideId } from '../../../games/battle-arena/types.js'
@@ -9,14 +9,22 @@ import type { ActorIdentity, SideId } from '../../../games/battle-arena/types.js
 export type TestActionId =
   | 'spawnA'
   | 'spawnB'
+  | 'spawnC'
+  | 'spawnD'
   | 'growA'
   | 'growB'
+  | 'growC'
+  | 'growD'
   | 'barrageA'
   | 'barrageB'
+  | 'barrageC'
+  | 'barrageD'
   | 'fillArena'
   /** Tidak muncul di TEST_ACTIONS: tombolnya adalah empat tombol ultimate, bukan grid uji. */
   | 'nukeA'
   | 'nukeB'
+  | 'nukeC'
+  | 'nukeD'
 
 export interface TestActionButton {
   id: TestActionId
@@ -25,15 +33,37 @@ export interface TestActionButton {
   side: SideId | null
 }
 
-export const TEST_ACTIONS: readonly TestActionButton[] = [
-  { id: 'spawnA', label: 'Tambah fighter', side: 'a' },
-  { id: 'spawnB', label: 'Tambah fighter', side: 'b' },
-  { id: 'growA', label: 'Tambah HP', side: 'a' },
-  { id: 'growB', label: 'Tambah HP', side: 'b' },
-  { id: 'barrageA', label: 'Serangan ×5', side: 'a' },
-  { id: 'barrageB', label: 'Serangan ×5', side: 'b' },
-  { id: 'fillArena', label: 'Isi arena — 10 tiap sisi', side: null },
-]
+export function testActions(sideCount: SideCount = 2): readonly TestActionButton[] {
+  if (sideCount === 4) {
+    return [
+      { id: 'spawnA', label: 'Tambah fighter', side: 'a' },
+      { id: 'spawnB', label: 'Tambah fighter', side: 'b' },
+      { id: 'spawnC', label: 'Tambah fighter', side: 'c' },
+      { id: 'spawnD', label: 'Tambah fighter', side: 'd' },
+      { id: 'growA', label: 'Tambah HP', side: 'a' },
+      { id: 'growB', label: 'Tambah HP', side: 'b' },
+      { id: 'growC', label: 'Tambah HP', side: 'c' },
+      { id: 'growD', label: 'Tambah HP', side: 'd' },
+      { id: 'barrageA', label: 'Serangan ×5', side: 'a' },
+      { id: 'barrageB', label: 'Serangan ×5', side: 'b' },
+      { id: 'barrageC', label: 'Serangan ×5', side: 'c' },
+      { id: 'barrageD', label: 'Serangan ×5', side: 'd' },
+      { id: 'fillArena', label: 'Isi arena — 10 tiap sisi', side: null },
+    ]
+  }
+
+  return [
+    { id: 'spawnA', label: 'Tambah fighter', side: 'a' },
+    { id: 'spawnB', label: 'Tambah fighter', side: 'b' },
+    { id: 'growA', label: 'Tambah HP', side: 'a' },
+    { id: 'growB', label: 'Tambah HP', side: 'b' },
+    { id: 'barrageA', label: 'Serangan ×5', side: 'a' },
+    { id: 'barrageB', label: 'Serangan ×5', side: 'b' },
+    { id: 'fillArena', label: 'Isi arena — 10 tiap sisi', side: null },
+  ]
+}
+
+export const TEST_ACTIONS: readonly TestActionButton[] = testActions(2)
 
 /** Barrage di Fase 1 adalah damage berulang ke satu sisi; pengikatan ke gift menyusul Fase 2. */
 const BARRAGE_MULTIPLIER = 5
@@ -118,28 +148,53 @@ export function testActionBatch(
       return [spawn('a', seq, 0)]
     case 'spawnB':
       return [spawn('b', seq, 0)]
+    case 'spawnC':
+      return [spawn('c', seq, 0)]
+    case 'spawnD':
+      return [spawn('d', seq, 0)]
     case 'growA':
       return grow('a')
     case 'growB':
       return grow('b')
+    case 'growC':
+      return grow('c')
+    case 'growD':
+      return grow('d')
     case 'barrageA':
       return barrage('a')
     case 'barrageB':
       return barrage('b')
+    case 'barrageC':
+      return barrage('c')
+    case 'barrageD':
+      return barrage('d')
     case 'nukeA':
     case 'nukeB':
-      // Damage dan jenisnya milik config; action hanya menyebut sisinya.
+    case 'nukeC':
+    case 'nukeD': {
+      const targetSide: SideId =
+        id === 'nukeA' ? 'a' : id === 'nukeB' ? 'b' : id === 'nukeC' ? 'c' : 'd'
       return [
         createBattleAction({
           type: 'nuke',
-          target: sideTarget(id === 'nukeA' ? 'a' : 'b'),
+          target: sideTarget(targetSide),
           actor: caster ?? creatorActor(),
         }),
       ]
-    case 'fillArena':
-      return [
+    }
+    case 'fillArena': {
+      const sideCount = config.gameplay.sideCount ?? 2
+      const actions: BattleAction[] = [
         ...repeat(FILL_PER_SIDE, (index) => spawn('a', seq, index)),
         ...repeat(FILL_PER_SIDE, (index) => spawn('b', seq, FILL_PER_SIDE + index)),
       ]
+      if (sideCount === 4) {
+        actions.push(
+          ...repeat(FILL_PER_SIDE, (index) => spawn('c', seq, FILL_PER_SIDE * 2 + index)),
+          ...repeat(FILL_PER_SIDE, (index) => spawn('d', seq, FILL_PER_SIDE * 3 + index)),
+        )
+      }
+      return actions
+    }
   }
 }

@@ -1,13 +1,38 @@
 import type { ChatPlatform } from '@lga/shared'
 import type { Entity } from '../../framework/entity/entity.js'
 
-/** Dua sisi arena. Nama tampilan ada di config; kode selalu memakai 'a' dan 'b'. */
-export type SideId = 'a' | 'b'
+/** Empat sisi arena: 'a', 'b', 'c', 'd'. Mode 2 kubu hanya mengaktifkan 'a' dan 'b'. */
+export type SideId = 'a' | 'b' | 'c' | 'd'
 
 export const SIDES: readonly SideId[] = ['a', 'b']
+export const SIDES_ALL: readonly SideId[] = ['a', 'b', 'c', 'd']
 
+/** Sisi-sisi yang aktif berdasarkan jumlah kubu yang dipilih. */
+export function activeSides(sideCount: 2 | 4): readonly SideId[] {
+  return sideCount === 4 ? SIDES_ALL : SIDES
+}
+
+/** Mengembalikan daftar seluruh kubu lawan yang aktif (mode FFA). */
+export function enemySides(side: SideId, sideCount: 2 | 4): SideId[] {
+  const active = activeSides(sideCount)
+  return active.filter((s) => s !== side)
+}
+
+/**
+ * Pemetaan lawan langsung (kompatibilitas mode 2 sisi dan fallback).
+ * Pada mode 2 sisi: 'a' <-> 'b'.
+ */
 export function otherSide(side: SideId): SideId {
-  return side === 'a' ? 'b' : 'a'
+  switch (side) {
+    case 'a':
+      return 'b'
+    case 'b':
+      return 'a'
+    case 'c':
+      return 'd'
+    case 'd':
+      return 'c'
+  }
 }
 
 /** Empat state loop perilaku per fighter (Req 32 AC1). */
@@ -78,3 +103,6 @@ export interface SessionGifter {
   avatarUrl: string | null
   coins: number
 }
+
+/** Jumlah penyumbang sesi yang ditampilkan di papan arena. */
+export const SESSION_GIFTER_LIMIT = 5

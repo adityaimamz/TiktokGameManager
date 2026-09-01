@@ -157,7 +157,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
   const [version, setVersion] = useState(0)
   const [config, setConfig] = useState<BattleArenaConfig>(defaultConfig())
   const [roster, setRoster] = useState<ReadonlyMap<number, RosterEntry>>(new Map())
-  const [topGifter, setTopGifter] = useState<SessionGifter | null>(null)
+  const [topGifters, setTopGifters] = useState<SessionGifter[]>([])
   const [kills, setKills] = useState<KillFeedEntry[]>([])
   const [joins, setJoins] = useState<JoinFeedEntry[]>([])
   const [gifts, setGifts] = useState<GiftFeedEntry[]>([])
@@ -203,7 +203,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
     if (restored.config !== null) setConfig(restored.config)
     if (restored.roster !== null) {
       setRoster(new Map(restored.roster.entries.map((entry) => [entry.slotIndex, entry])))
-      setTopGifter(restored.roster.topGifter)
+      setTopGifters(restored.roster.topGifters ?? [])
     }
     if (restored.snapshot !== null) acceptSnapshot(restored.snapshot)
   }, [signals, acceptSnapshot])
@@ -219,7 +219,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
       signals.onConfig((next) => setConfig(next)),
       signals.onRoster((next) => {
         setRoster(new Map(next.entries.map((entry) => [entry.slotIndex, entry])))
-        setTopGifter(next.topGifter)
+        setTopGifters(next.topGifters ?? [])
       }),
       signals.onFeed((entry) => {
         if (entry.kind === 'kill') {
@@ -261,7 +261,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
           history={history}
           config={config}
           roster={roster}
-          topGifter={topGifter}
+          topGifters={topGifters}
           kills={kills}
           joins={joins}
           gifts={gifts}

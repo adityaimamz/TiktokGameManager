@@ -35,7 +35,7 @@ describe('triggerCards', () => {
   it('membuat satu kartu per rule, dengan judul dari label rule', () => {
     const cards = triggerCards(defaultConfig())
     expect(cards.map((card) => card.id)).toEqual(defaultConfig().triggers.map((r) => r.id))
-    expect(cards[2]?.title).toBe('Grow my blob (HP)')
+    expect(cards.find((c) => c.id === 'grow-hp')?.title).toBe('Grow my blob (HP)')
   })
 
   it('membawa legend.show sebagai showOnScreen', () => {
@@ -65,7 +65,7 @@ describe('triggerCards', () => {
     const config = defaultConfig()
     config.likes.threshold = 25
     config.gameplay.hpGainedPerGrow = 7
-    const card = triggerCards(config)[2]
+    const card = triggerCards(config).find((c) => c.id === 'grow-hp')
 
     expect(card?.keyword).toBeNull()
     expect(card?.everyNLikes).toBe(25)

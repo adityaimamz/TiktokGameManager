@@ -4,7 +4,7 @@ import type { SideId } from '../../../games/battle-arena/types.js'
 import { UltimateButtons } from '../ultimate.js'
 import type { UltimateButtonsProps } from '../ultimate.js'
 import { Accordion } from './Accordion.js'
-import { TEST_ACTIONS } from './test-actions.js'
+import { testActions } from './test-actions.js'
 import type { TestActionId } from './test-actions.js'
 
 export interface TestActionsProps {
@@ -16,6 +16,9 @@ export interface TestActionsProps {
 }
 
 export function TestActions(props: TestActionsProps): ReactElement {
+  const sideCount = props.config?.gameplay.sideCount ?? 2
+  const actions = testActions(sideCount)
+
   const color = (side: SideId): string =>
     props.config?.sides[side].color ?? (side === 'a' ? '#3b82f6' : '#ef4444')
 
@@ -23,7 +26,7 @@ export function TestActions(props: TestActionsProps): ReactElement {
     <section>
       <Accordion title="Aksi uji">
         <div className="grid grid-cols-2 gap-2">
-          {TEST_ACTIONS.map((button) => (
+          {actions.map((button) => (
             <button
               className={`btn btn-wide ${button.side === null ? 'col-span-2' : ''}`.trim()}
               key={button.id}

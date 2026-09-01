@@ -121,6 +121,52 @@ describe('validateConfig', () => {
     expect(result.sound.attack.volume).toBe(0.8)
     expect(result.sound.death.enabled).toBe(true)
   })
+
+  it('validates sideCount in gameplay (accepts 2 or 4, falls back to 2)', () => {
+    expect(validateConfig({ gameplay: { sideCount: 4 } }).gameplay.sideCount).toBe(4)
+    expect(validateConfig({ gameplay: { sideCount: 2 } }).gameplay.sideCount).toBe(2)
+    expect(validateConfig({ gameplay: { sideCount: 3 as any } }).gameplay.sideCount).toBe(2)
+  })
+
+  it('validates sides C and D configs', () => {
+    const result = validateConfig({
+      sides: {
+        c: { name: 'Custom C', keyword: 'c_custom', color: '#112233' },
+        d: { name: 'Custom D', keyword: 'd_custom', color: '#445566' },
+      },
+    })
+    expect(result.sides.c.name).toBe('Custom C')
+    expect(result.sides.c.keyword).toBe('c_custom')
+    expect(result.sides.c.color).toBe('#112233')
+    expect(result.sides.d.name).toBe('Custom D')
+    expect(result.sides.d.keyword).toBe('d_custom')
+    expect(result.sides.d.color).toBe('#445566')
+  })
+
+  it('accepts comment trigger rules with matchSide c and d', () => {
+    const result = validateConfig({
+      triggers: [
+        {
+          id: 'join-c',
+          label: 'Join C',
+          enabled: true,
+          when: { kind: 'comment', matchSide: 'c' },
+          then: { actionType: 'spawn', target: 'sideA', value: 0 },
+          legend: { show: true, caption: 'JOIN C', icon: 'join' },
+        },
+        {
+          id: 'join-d',
+          label: 'Join D',
+          enabled: true,
+          when: { kind: 'comment', matchSide: 'd' },
+          then: { actionType: 'spawn', target: 'sideB', value: 0 },
+          legend: { show: true, caption: 'JOIN D', icon: 'join' },
+        },
+      ],
+    })
+    expect(result.triggers[0]?.when).toEqual({ kind: 'comment', matchSide: 'c' })
+    expect(result.triggers[1]?.when).toEqual({ kind: 'comment', matchSide: 'd' })
+  })
 })
 
 describe('validateSection', () => {
@@ -164,6 +210,14 @@ describe('validateNumericInput', () => {
 
   it('allows a fractional value where the range permits it', () => {
     expect(validateNumericInput('gameplay.attackIntervalSec', 1.5)).toEqual({ ok: true, value: 1.5 })
+  })
+
+  it('allows unbounded large integers when range.max is Infinity (nuke damage)', () => {
+    expect(validateNumericInput('gameplay.nuke.damage', 10000)).toEqual({ ok: true, value: 10000 })
+    expect(validateNumericInput('gameplay.nuke.damage', 999999)).toEqual({ ok: true, value: 999999 })
+    const result = validateNumericInput('gameplay.nuke.damage', 5)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('gameplay.nuke.damage must be a whole number at least 10')
   })
 })
 
@@ -271,7 +325,7 @@ describe('config nuke', () => {
 
   it('mengembalikan damage di luar rentang ke default', () => {
     const config = validateConfig({
-      gameplay: { nuke: { type: 'laser', damage: 9000, durationMs: 2500 } },
+      gameplay: { nuke: { type: 'laser', damage: 0, durationMs: 2500 } },
     })
     expect(config.gameplay.nuke).toEqual({
       ...defaultConfig().gameplay.nuke,
@@ -295,12 +349,12 @@ describe('config nuke', () => {
     legend: { show: true, caption: 'NUKE', icon: 'nuke' },
   })
 
-  it('menyimpan damage nuke per rule, tidak menyeragamkannya', () => {
+  it('menyimpan damage nuke per rule, tidak menyeragamkannya dan mengizinkan nilai besar', () => {
     const config = validateConfig({
       gameplay: { nuke: { type: 'bomb', damage: 120, durationMs: 2000 } },
-      triggers: [nukeRule('gift-nuke', 60), nukeRule('gift-nuke-besar', 400)],
+      triggers: [nukeRule('gift-nuke', 60), nukeRule('gift-nuke-besar', 50000)],
     })
-    expect(config.triggers.map((r) => r.then.value)).toEqual([60, 400])
+    expect(config.triggers.map((r) => r.then.value)).toEqual([60, 50000])
   })
 
   it('memakai gameplay.nuke.damage sebagai bawaan saat nilai rule di luar akal', () => {

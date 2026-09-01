@@ -42,7 +42,7 @@ export function VictoryBanner({
         >{`MVP ${model.mvp.username} · ${model.mvp.kills} kills`}</div>
       )}
       <div style={{ fontSize: scaled(layout, 18), opacity: 0.75 }}>
-        {`${model.totalKills.a} - ${model.totalKills.b} · ${model.fighterCount} fighters`}
+        {`${model.totalKills.c > 0 || model.totalKills.d > 0 ? `${model.totalKills.a} - ${model.totalKills.b} - ${model.totalKills.c} - ${model.totalKills.d}` : `${model.totalKills.a} - ${model.totalKills.b}`} · ${model.fighterCount} fighters`}
       </div>
     </div>
   )

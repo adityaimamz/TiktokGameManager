@@ -1,9 +1,8 @@
-import { SIDE_B } from '@lga/shared'
 import type { SnapshotHistory, SnapshotView } from '@lga/shared'
 import type { IGameRenderer } from '../../../framework/types/plugin.js'
 import { PROJECTILE_RADIUS, TICK_MS, fighterScale } from '../arena.js'
 import type { BattleArenaConfig, NukeType } from '../config/index.js'
-import { effectTypeFromIndex, nukeTypeFromIndex } from '../snapshot.js'
+import { effectTypeFromIndex, nukeTypeFromIndex, sideFromIndex } from '../snapshot.js'
 import type { RosterEntry } from '../snapshot.js'
 import { AvatarCache } from './avatar-cache.js'
 import { DeathFade } from './death-fade.js'
@@ -123,14 +122,12 @@ function drawFloor(ctx: CanvasRenderingContext2D, layout: StageLayout): void {
 }
 
 /**
- * Jahitan cahaya di garis tengah: satu garis putih menyala.
- *
- * Ini penanda paling terang di panggung karena ia menjawab pertanyaan paling sering
- * ditanya penonton baru — di mana batas kedua wilayah.
+ * Jahitan cahaya di garis tengah / pembagi kuadran: garis putih menyala.
  */
-function drawSeam(ctx: CanvasRenderingContext2D, layout: StageLayout): void {
+function drawSeam(ctx: CanvasRenderingContext2D, layout: StageLayout, sideCount = 2): void {
   const { arena } = layout
   const midline = arenaMidlineX(layout)
+  const midlineY = arena.y + arena.height / 2
 
   ctx.save()
   ctx.shadowColor = 'rgba(190,220,255,0.95)'
@@ -141,6 +138,13 @@ function drawSeam(ctx: CanvasRenderingContext2D, layout: StageLayout): void {
   ctx.moveTo(midline, arena.y)
   ctx.lineTo(midline, arena.y + arena.height)
   ctx.stroke()
+
+  if (sideCount === 4) {
+    ctx.beginPath()
+    ctx.moveTo(arena.x, midlineY)
+    ctx.lineTo(arena.x + arena.width, midlineY)
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -152,6 +156,7 @@ export function clearStage(ctx: CanvasRenderingContext2D): void {
 export function drawZones(ctx: CanvasRenderingContext2D, deps: RenderDeps): void {
   const { layout, config } = deps
   const { arena, top, bottom } = layout
+  const sideCount = config.gameplay.sideCount ?? 2
 
   // Transparansi hanya menyentuh lapisan latar (keputusan E8): fighter dan HUD tetap pekat
   // meski creator menurunkan opasitas panggung sampai nyaris hilang.
@@ -170,29 +175,55 @@ export function drawZones(ctx: CanvasRenderingContext2D, deps: RenderDeps): void
     if (image !== null) ctx.drawImage(image, arena.x, arena.y, arena.width, arena.height)
   }
 
-  const half = arena.width / 2
-  for (const [side, x] of [
-    ['a', arena.x],
-    ['b', arena.x + half],
-  ] as const) {
-    const sideConfig = config.sides[side]
-    const image =
-      sideConfig.backgroundImage === null
-        ? null
-        : (deps.image?.(sideConfig.backgroundImage, half, arena.height) ?? null)
-    if (image !== null) {
-      ctx.drawImage(image, x, arena.y, half, arena.height)
-      continue
+  if (sideCount === 4) {
+    const halfW = arena.width / 2
+    const halfH = arena.height / 2
+    const quadrants = [
+      { side: 'a' as const, x: arena.x, y: arena.y },
+      { side: 'b' as const, x: arena.x + halfW, y: arena.y },
+      { side: 'c' as const, x: arena.x, y: arena.y + halfH },
+      { side: 'd' as const, x: arena.x + halfW, y: arena.y + halfH },
+    ]
+    for (const q of quadrants) {
+      const sideConfig = config.sides[q.side]
+      const image =
+        sideConfig.backgroundImage === null
+          ? null
+          : (deps.image?.(sideConfig.backgroundImage, halfW, halfH) ?? null)
+      if (image !== null) {
+        ctx.drawImage(image, q.x, q.y, halfW, halfH)
+        continue
+      }
+      ctx.globalAlpha = (config.overlay.transparency / 100) * SIDE_TINT_ALPHA
+      ctx.fillStyle = sideConfig.color
+      ctx.fillRect(q.x, q.y, halfW, halfH)
+      ctx.globalAlpha = config.overlay.transparency / 100
     }
-    ctx.globalAlpha = (config.overlay.transparency / 100) * SIDE_TINT_ALPHA
-    ctx.fillStyle = sideConfig.color
-    ctx.fillRect(x, arena.y, half, arena.height)
-    ctx.globalAlpha = config.overlay.transparency / 100
+  } else {
+    const half = arena.width / 2
+    for (const [side, x] of [
+      ['a', arena.x],
+      ['b', arena.x + half],
+    ] as const) {
+      const sideConfig = config.sides[side]
+      const image =
+        sideConfig.backgroundImage === null
+          ? null
+          : (deps.image?.(sideConfig.backgroundImage, half, arena.height) ?? null)
+      if (image !== null) {
+        ctx.drawImage(image, x, arena.y, half, arena.height)
+        continue
+      }
+      ctx.globalAlpha = (config.overlay.transparency / 100) * SIDE_TINT_ALPHA
+      ctx.fillStyle = sideConfig.color
+      ctx.fillRect(x, arena.y, half, arena.height)
+      ctx.globalAlpha = config.overlay.transparency / 100
+    }
   }
 
   drawParticles(ctx, layout, deps.nowMs, ctx.globalAlpha)
   drawFloor(ctx, layout)
-  drawSeam(ctx, layout)
+  drawSeam(ctx, layout, sideCount)
 
   ctx.globalAlpha = 1
 }
@@ -229,7 +260,8 @@ export function drawProjectiles(
     if (projectile === undefined) continue
     extrapolateProjectile(projectile, alpha, point)
 
-    const colour = deps.config.sides[projectile.kind === SIDE_B ? 'b' : 'a'].color
+    const side = sideFromIndex(projectile.kind)
+    const colour = deps.config.sides[side].color
     const palette: GlowPalette = [colour, colour, '#ffffff']
     const x = arenaX(layout, point.x)
     const y = arenaY(layout, point.y)
@@ -330,7 +362,7 @@ export function drawFighters(
     if (fighter === undefined) continue
 
     const entry = roster.get(fighter.slotIndex)
-    const side = config.sides[fighter.side === SIDE_B ? 'b' : 'a']
+    const side = config.sides[sideFromIndex(fighter.side)]
     const push = impulse?.for(fighter.slotIndex)
     const cx = arenaX(layout, fighter.x) + (push?.dx ?? 0)
     const cy = arenaY(layout, fighter.y) + (push?.dy ?? 0)

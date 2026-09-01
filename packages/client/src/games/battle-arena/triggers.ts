@@ -4,6 +4,7 @@ import { normalizeChatText } from '../../platform/chat/normalize-text.js'
 import { createBattleAction, targetFromKind } from './actions.js'
 import type { BattleAction } from './actions.js'
 import type { BattleArenaConfig, SideConfig, TriggerRule } from './config/index.js'
+import { activeSides } from './types.js'
 import type { ActorIdentity, SideId } from './types.js'
 
 /**
@@ -251,14 +252,20 @@ export function sideOfRule(rule: TriggerRule): SideId | null {
   if (rule.when.kind === 'comment') return rule.when.matchSide
   if (rule.then.target === 'sideA') return 'a'
   if (rule.then.target === 'sideB') return 'b'
+  if (rule.then.target === 'sideC') return 'c'
+  if (rule.then.target === 'sideD') return 'd'
   return null
 }
 
 export function buildActionLegend(config: BattleArenaConfig): LegendEntry[] {
   const entries: LegendEntry[] = []
+  const active = activeSides(config.gameplay.sideCount ?? 2)
 
   for (const rule of config.triggers) {
     if (!rule.enabled || !rule.legend.show) continue
+
+    const ruleSide = sideOfRule(rule)
+    if (ruleSide !== null && !active.includes(ruleSide)) continue
 
     if (rule.when.kind === 'comment') {
       const side = config.sides[rule.when.matchSide]
@@ -267,7 +274,7 @@ export function buildActionLegend(config: BattleArenaConfig): LegendEntry[] {
         condition: `"${side.keyword}"`,
         caption: resolveCaption(rule, config).toUpperCase(),
         icon: rule.legend.icon,
-        side: sideOfRule(rule),
+        side: ruleSide,
       })
       continue
     }

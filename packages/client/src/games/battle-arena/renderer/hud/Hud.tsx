@@ -29,12 +29,12 @@ export interface HudProps {
   nowMs: number
   layout: StageLayout
   /**
-   * Penyumbang terbesar SESI, dari payload roster.
+   * Lima penyumbang terbesar SESI, dari payload roster.
    *
    * Dioper, bukan dihitung di sini: snapshot fighter tidak memuatnya dan tidak bisa —
    * penyumbang terbesar belum tentu punya fighter sama sekali.
    */
-  topGifter?: SessionGifter | null
+  topGifters?: readonly SessionGifter[]
 }
 
 /**
@@ -43,6 +43,7 @@ export interface HudProps {
  * Elemen di sini jarang berubah dan butuh tata letak teks, jadi DOM lebih tepat daripada
  * canvas. Tidak ada logika: seluruh keputusan sudah diambil view-model.
  */
+
 /**
  * Pil status di kaki arena: satu kalimat yang menjawab "kenapa tidak ada yang bergerak".
  *
@@ -97,48 +98,75 @@ function MatchStatus({
   )
 }
 
-/** Pil "ZONA A" / "ZONA B" di sudut atas arena — penanda wilayah, bukan nama tim. */
-function ZoneLabels({ layout }: { layout: StageLayout }): ReactElement {
-  const pill = (side: 'a' | 'b'): ReactElement => (
-    <span
-      data-testid={`zone-${side}`}
-      style={{
-        position: 'absolute',
-        top: layout.arena.y + scaled(layout, 10),
-        [side === 'a' ? 'left' : 'right']: scaled(layout, 10),
-        padding: `${scaled(layout, 3)}px ${scaled(layout, 9)}px`,
-        borderRadius: scaled(layout, 6),
-        background: side === 'a' ? 'rgba(20,60,160,.42)' : 'rgba(160,20,70,.42)',
-        border: `1px solid ${side === 'a' ? 'rgba(120,190,255,.35)' : 'rgba(255,140,180,.35)'}`,
-        color: side === 'a' ? '#BFDDFF' : '#FFD0E0',
-        fontSize: scaled(layout, 12),
-        fontWeight: 700,
-        letterSpacing: '0.18em',
-      }}
-    >
-      {`ZONA ${side.toUpperCase()}`}
-    </span>
-  )
+/** Pil "ZONA A" / "ZONA B" / "ZONA C" / "ZONA D" di sudut arena — penanda wilayah. */
+function ZoneLabels({ layout, sideCount = 2 }: { layout: StageLayout; sideCount?: number }): ReactElement {
+  const pill = (side: 'a' | 'b' | 'c' | 'd'): ReactElement => {
+    const isTop = side === 'a' || side === 'b'
+    const isLeft = side === 'a' || side === 'c'
+    const bgColors: Record<'a' | 'b' | 'c' | 'd', string> = {
+      a: 'rgba(20,60,160,.42)',
+      b: 'rgba(160,20,70,.42)',
+      c: 'rgba(20,130,80,.42)',
+      d: 'rgba(160,100,20,.42)',
+    }
+    const borderColors: Record<'a' | 'b' | 'c' | 'd', string> = {
+      a: 'rgba(120,190,255,.35)',
+      b: 'rgba(255,140,180,.35)',
+      c: 'rgba(100,240,160,.35)',
+      d: 'rgba(255,200,100,.35)',
+    }
+    const textColors: Record<'a' | 'b' | 'c' | 'd', string> = {
+      a: '#BFDDFF',
+      b: '#FFD0E0',
+      c: '#BFFFE0',
+      d: '#FFE8BF',
+    }
+
+    return (
+      <span
+        key={side}
+        data-testid={`zone-${side}`}
+        style={{
+          position: 'absolute',
+          top: isTop ? layout.arena.y + scaled(layout, 10) : layout.arena.y + layout.arena.height - scaled(layout, 32),
+          [isLeft ? 'left' : 'right']: scaled(layout, 10),
+          padding: `${scaled(layout, 3)}px ${scaled(layout, 9)}px`,
+          borderRadius: scaled(layout, 6),
+          background: bgColors[side],
+          border: `1px solid ${borderColors[side]}`,
+          color: textColors[side],
+          fontSize: scaled(layout, 12),
+          fontWeight: 700,
+          letterSpacing: '0.18em',
+        }}
+      >
+        {`ZONA ${side.toUpperCase()}`}
+      </span>
+    )
+  }
 
   return (
     <>
       {pill('a')}
       {pill('b')}
+      {sideCount === 4 ? pill('c') : null}
+      {sideCount === 4 ? pill('d') : null}
     </>
   )
 }
 
 export function Hud(props: HudProps): ReactElement {
   const { view, config, roster, layout } = props
+  const sideCount = config.gameplay.sideCount ?? 2
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <ScoreBar model={scoreBarModel(view, config)} layout={layout} />
-      <ZoneLabels layout={layout} />
+      <ZoneLabels layout={layout} sideCount={sideCount} />
       <Callout model={calloutModel(view, roster, config)} config={config} layout={layout} />
       <MatchStatus view={view} layout={layout} />
       <TopFighters rows={topFighters(view, roster, config)} layout={layout} />
-      <TopGifter row={props.topGifter ?? null} layout={layout} />
+      <TopGifter rows={props.topGifters ?? []} layout={layout} />
       <Feeds
         kills={props.kills}
         joins={props.joins}

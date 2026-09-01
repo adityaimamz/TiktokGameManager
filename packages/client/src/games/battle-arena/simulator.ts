@@ -4,6 +4,7 @@ import type { Clock } from '../../framework/clock.js'
 import type { Rng } from '../../framework/rng.js'
 import type { ChatSource } from '../../platform/chat/source.js'
 import type { BattleArenaConfig } from './config/index.js'
+import { activeSides } from './types.js'
 import type { SideId } from './types.js'
 import { viewerName } from './usernames.js'
 
@@ -177,7 +178,7 @@ export class BattleArenaSimulator implements ChatSource {
     const config = this.opts.getConfig()
     // Plafonnya kapasitas arena, bukan sebuah preset: tiap komentar join yang terkirim harus
     // berujung pada satu fighter, kalau tidak chat dan arena bercerita berbeda.
-    const capacity = config.gameplay.maxFightersPerSide * 2
+    const capacity = config.gameplay.maxFightersPerSide * (config.gameplay.sideCount ?? 2)
 
     if (this.due('join', SIMULATOR_JOIN_RATE_PER_SEC, now) && activeDemoFighters < capacity) {
       const username = this.makeUsername()
@@ -217,8 +218,7 @@ export class BattleArenaSimulator implements ChatSource {
     }
 
     if (this.joined.length > 0 && this.due('gift', config.simulation.giftsPerSecond, now)) {
-      const gift = this.opts.rng.pick(GIFT_SEED)
-      const giftCount = this.opts.rng.int(1, 4)
+      const gift = this.pickGift(config)
       this.send(
         createChatMessage({
           id: this.nextId(),
@@ -227,8 +227,8 @@ export class BattleArenaSimulator implements ChatSource {
           username: this.pickViewer(),
           timestampMs: now,
           giftName: gift.name,
-          giftCount,
-          giftCoins: gift.coins * giftCount,
+          giftCount: gift.count,
+          giftCoins: gift.coins,
         }),
       )
     }
@@ -261,7 +261,8 @@ export class BattleArenaSimulator implements ChatSource {
   }
 
   private joinMessage(username: string, config: BattleArenaConfig, forced?: SideId): ChatMessage {
-    const side = forced ?? (this.opts.rng.next() < 0.5 ? 'a' : 'b')
+    const active = activeSides(config.gameplay.sideCount)
+    const side = forced ?? this.opts.rng.pick(active)
     return createChatMessage({
       id: this.nextId(),
       kind: 'textMessageEvent',
@@ -295,6 +296,49 @@ export class BattleArenaSimulator implements ChatSource {
 
   private nextId(): string {
     return `demo-${this.nextMessageId++}`
+  }
+
+  /**
+   * Memilih gift yang akan dikirim simulator.
+   *
+   * Menyesuaikan dengan action triggers yang sedang aktif (`enabled: true` dengan `when.kind === 'gift'`),
+   * sehingga event gift yang dihasilkan simulator memicu aksi game yang dikonfigurasi.
+   */
+  private pickGift(config: BattleArenaConfig): { name: string; count: number; coins: number } {
+    const activeGiftRules = (config.triggers ?? []).filter(
+      (rule) => rule.enabled && rule.when.kind === 'gift',
+    )
+
+    if (activeGiftRules.length > 0) {
+      const rule = this.opts.rng.pick(activeGiftRules)
+      const when = rule.when as { kind: 'gift'; giftNames: string[]; minCount: number }
+      const minCount = Math.max(1, when.minCount || 1)
+      const count = this.opts.rng.int(minCount, minCount + 3)
+
+      let name: string
+      if (when.giftNames && when.giftNames.length > 0) {
+        name = this.opts.rng.pick(when.giftNames)
+      } else {
+        name = this.opts.rng.pick(GIFT_SEED).name
+      }
+
+      const seedEntry = GIFT_SEED.find((g) => g.name.toLowerCase() === name.toLowerCase())
+      const unitCoins = seedEntry?.coins ?? 1
+
+      return {
+        name,
+        count,
+        coins: unitCoins * count,
+      }
+    }
+
+    const fallback = this.opts.rng.pick(GIFT_SEED)
+    const count = this.opts.rng.int(1, 4)
+    return {
+      name: fallback.name,
+      count,
+      coins: fallback.coins * count,
+    }
   }
 
   private send(message: ChatMessage): void {

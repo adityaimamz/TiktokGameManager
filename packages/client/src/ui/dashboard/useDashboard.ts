@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SnapshotHistory, createChatMessage, idleStatus } from '@lga/shared'
 import type { ConnectionStatus, MatchSummary, PlayerStats } from '@lga/shared'
 import type { BattleArenaConfig } from '../../games/battle-arena/config/index.js'
+import { activeSides } from '../../games/battle-arena/types.js'
+import type { SideId } from '../../games/battle-arena/types.js'
 import { createPersistence } from '../../platform/persistence/index.js'
 import { serverBaseUrl } from '../../platform/server-url.js'
 import { apiFetch } from '../../platform/app-key.js'
@@ -96,8 +98,8 @@ export interface DashboardModel {
   history: SnapshotHistory
   version: number
   roster: ReadonlyMap<number, RosterEntry>
-  /** Penyumbang terbesar SESI, dari payload roster yang sama dengan yang dikirim ke overlay. */
-  sessionTopGifter: SessionGifter | null
+  /** Lima penyumbang terbesar SESI, dari payload roster yang sama dengan yang dikirim ke overlay. */
+  sessionTopGifters: readonly SessionGifter[]
   kills: KillFeedEntry[]
   joins: JoinFeedEntry[]
   gifts: GiftFeedEntry[]
@@ -171,7 +173,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
 
   const [version, setVersion] = useState(0)
   const [roster, setRoster] = useState<ReadonlyMap<number, RosterEntry>>(new Map())
-  const [sessionTopGifter, setSessionTopGifter] = useState<SessionGifter | null>(null)
+  const [sessionTopGifters, setSessionTopGifters] = useState<SessionGifter[]>([])
   const [kills, setKills] = useState<KillFeedEntry[]>([])
   const [joins, setJoins] = useState<JoinFeedEntry[]>([])
   const [gifts, setGifts] = useState<GiftFeedEntry[]>([])
@@ -429,10 +431,12 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
       // match yang tuntas, Restart, End Session — langsung dibuka lagi. Idle baru berlaku
       // setelah creator menghentikan simulatornya sendiri.
       if (rig.host.engine.matchState === 'idle') rig.host.engine.start()
-      rig.simulator.update(
-        state.fighters.countOnSide('a', { platform: 'demo' }) +
-          state.fighters.countOnSide('b', { platform: 'demo' }),
+      const active = activeSides(config.gameplay.sideCount)
+      const demoCount = active.reduce(
+        (sum, side) => sum + state.fighters.countOnSide(side, { platform: 'demo' }),
+        0,
       )
+      rig.simulator.update(demoCount)
     }
 
     // Kedaluwarsa banner menumpang frame yang sudah ada. `expireBanner` mengembalikan state
@@ -446,7 +450,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
       lastDrawn.current = snapshot
       history.push(snapshot)
       setRoster(new Map(rig.host.currentRoster))
-      setSessionTopGifter(rig.host.currentTopGifter)
+      setSessionTopGifters([...rig.host.currentTopGifters])
       setVersion((value) => value + 1)
 
       const nextState = matchStateFromIndex(history.current.header.matchState)
@@ -456,7 +460,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
         lastMatchState.current = nextState
       }
     }
-  }, [history, notify])
+  }, [config.gameplay.sideCount, history, notify])
 
   const setConfig = useCallback(
     (next: BattleArenaConfig) => {
@@ -601,9 +605,16 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
 
         // Ultimate uji terbit dari blob sungguhan yang dipilih acak, bukan dari tepi arena:
         // origin-nya adalah posisi caster, dan creator tidak punya fighter di sana.
+        const nukeTargetSide: Partial<Record<TestActionId, SideId>> = {
+          nukeA: 'a',
+          nukeB: 'b',
+          nukeC: 'c',
+          nukeD: 'd',
+        }
+        const targetSide = nukeTargetSide[id]
         const caster =
-          id === 'nukeA' || id === 'nukeB'
-            ? randomCaster(id === 'nukeA' ? 'a' : 'b', history.current, roster)
+          targetSide !== undefined
+            ? randomCaster(targetSide, history.current, roster)
             : null
 
         for (const action of testActionBatch(id, config, seq.current++, caster)) {
@@ -672,7 +683,7 @@ export function useDashboard(options: DashboardOptions = {}): DashboardModel {
     history,
     version,
     roster,
-    sessionTopGifter,
+    sessionTopGifters,
     kills,
     joins,
     gifts,

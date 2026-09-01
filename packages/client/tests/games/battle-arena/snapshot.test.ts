@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { SIDE_A, SIDE_B, decodeSnapshot } from '@lga/shared'
+import { SIDE_A, SIDE_B, SIDE_C, SIDE_D, decodeSnapshot } from '@lga/shared'
 import { createManualClock } from '../../../src/framework/clock.js'
 import { createRng } from '../../../src/framework/rng.js'
 import { resetEntityIds } from '../../../src/framework/entity/factory.js'
@@ -11,9 +11,13 @@ import {
   SnapshotWriter,
   effectTypeIndex,
   matchStateIndex,
+  sideFromIndex,
   sideIndex,
 } from '../../../src/games/battle-arena/snapshot.js'
-import { createBattleArenaState } from '../../../src/games/battle-arena/state.js'
+import {
+  createBattleArenaState,
+  recordSessionGift,
+} from '../../../src/games/battle-arena/state.js'
 import type { Fighter, SideId } from '../../../src/games/battle-arena/types.js'
 import { enqueueUltimate, releaseUltimates } from '../../../src/games/battle-arena/ultimate.js'
 
@@ -34,9 +38,16 @@ const setup = () => {
 }
 
 describe('sideIndex and matchStateIndex', () => {
-  it('encodes both sides as distinct numbers', () => {
+  it('encodes all 4 sides as distinct numbers and maps them back', () => {
     expect(sideIndex('a')).toBe(SIDE_A)
     expect(sideIndex('b')).toBe(SIDE_B)
+    expect(sideIndex('c')).toBe(SIDE_C)
+    expect(sideIndex('d')).toBe(SIDE_D)
+
+    expect(sideFromIndex(SIDE_A)).toBe('a')
+    expect(sideFromIndex(SIDE_B)).toBe('b')
+    expect(sideFromIndex(SIDE_C)).toBe('c')
+    expect(sideFromIndex(SIDE_D)).toBe('d')
   })
 
   it('encodes the match state as its position in MATCH_STATES', () => {
@@ -59,6 +70,8 @@ describe('SnapshotWriter', () => {
     state.tick = 12
     state.roundScore.a = 3
     state.roundScore.b = 1
+    state.roundScore.c = 4
+    state.roundScore.d = 2
     state.roundsWon.a = 1
     clock.advance(700)
 
@@ -69,8 +82,12 @@ describe('SnapshotWriter', () => {
     expect(view.header.matchState).toBe(matchStateIndex('battle'))
     expect(view.header.roundScoreA).toBe(3)
     expect(view.header.roundScoreB).toBe(1)
+    expect(view.header.roundScoreC).toBe(4)
+    expect(view.header.roundScoreD).toBe(2)
     expect(view.header.roundsWonA).toBe(1)
     expect(view.header.roundsWonB).toBe(0)
+    expect(view.header.roundsWonC).toBe(0)
+    expect(view.header.roundsWonD).toBe(0)
     expect(view.header.fighterCount).toBe(0)
     expect(view.header.roundWinner).toBe(-1)
   })
@@ -165,6 +182,16 @@ describe('SnapshotWriter', () => {
 describe('RosterPublisher', () => {
   beforeEach(() => resetEntityIds())
 
+  it('publishes an empty roster the first time it is asked', () => {
+    const { state } = setup()
+
+    expect(new RosterPublisher().next(state)).toEqual({
+      version: 1,
+      entries: [],
+      topGifters: [],
+    })
+  })
+
   it('publishes the roster the first time it is asked', () => {
     const { state, add } = setup()
     add('andi', 'a')
@@ -223,6 +250,38 @@ describe('RosterPublisher', () => {
     expect(entries.map((e) => e.slotIndex)).toEqual([0, 1])
     expect(entries.map((e) => e.username)).toEqual(['cinta', 'budi'])
   })
+
+  it('publishes the five session gifters in rank order and updates when rank five changes', () => {
+    const { state } = setup()
+    const publisher = new RosterPublisher()
+    const gift = (username: string, coins: number): void =>
+      recordSessionGift(state, { platform: 'tiktok', username, avatarUrl: null }, coins)
+
+    gift('andi', 60)
+    gift('budi', 50)
+    gift('cinta', 40)
+    gift('dina', 30)
+    gift('eka', 20)
+    gift('fajar', 10)
+
+    expect(publisher.next(state)?.topGifters.map((entry) => entry.username)).toEqual([
+      'andi',
+      'budi',
+      'cinta',
+      'dina',
+      'eka',
+    ])
+    expect(publisher.next(state)).toBeNull()
+
+    gift('fajar', 15)
+    expect(publisher.next(state)?.topGifters.map((entry) => entry.username)).toEqual([
+      'andi',
+      'budi',
+      'cinta',
+      'dina',
+      'fajar',
+    ])
+  })
 })
 
 describe('koin gift', () => {
@@ -271,7 +330,7 @@ describe('encode ultimate (Plan 6a)', () => {
       originX: 20,
       originY: 40,
       targetX: 75,
-      targetY: 50,
+      targetY: 25,
       killCount: 3,
       totalDamage: 150,
       stale: 0,

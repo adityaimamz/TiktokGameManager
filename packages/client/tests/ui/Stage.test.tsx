@@ -16,7 +16,7 @@ afterEach(() => Object.defineProperty(window, 'devicePixelRatio', { value: 1, co
 
 const snapshot = (tick: number): Float32Array => {
   const buf = new Float32Array(snapshotLength(1, 0, 0))
-  buf.set([tick, tick * 50, 3, 1, 0, 0, 0, 1, 0, 0, -1], 0)
+  buf.set([tick, tick * 50, 3, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0], 0)
   buf.set([0, 25, 50, 80, 100, SIDE_A, 1, 0, -1, 2], SNAPSHOT_HEADER_LENGTH)
   return buf
 }

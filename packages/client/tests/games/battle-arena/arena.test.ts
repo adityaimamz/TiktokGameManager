@@ -12,7 +12,11 @@ import {
   PROJECTILE_SPEED_PER_TICK,
   TICK_MS,
   clampToSideHalf,
+  clampToSideZone,
+  initialFacingAngle,
   isOutsideArena,
+  sideBounds,
+  sideCenter,
   sideHalfBounds,
 } from '../../../src/games/battle-arena/arena.js'
 import {
@@ -154,6 +158,69 @@ describe('clampToSideHalf', () => {
     const p = { x: 20, y: 40 }
     clampToSideHalf(p, 'a')
     expect(p).toEqual({ x: 20, y: 40 })
+  })
+})
+
+describe('4-quadrant geometry (sideCount = 4)', () => {
+  it('divides the arena into 4 non-overlapping quadrants', () => {
+    const a = sideBounds('a', 4)
+    const b = sideBounds('b', 4)
+    const c = sideBounds('c', 4)
+    const d = sideBounds('d', 4)
+
+    // Side A (Top-Left)
+    expect(a.minX).toBe(FIGHTER_EDGE_MARGIN)
+    expect(a.maxX).toBe(50 - FIGHTER_EDGE_MARGIN)
+    expect(a.minY).toBe(FIGHTER_EDGE_MARGIN)
+    expect(a.maxY).toBe(50 - FIGHTER_EDGE_MARGIN)
+
+    // Side B (Top-Right)
+    expect(b.minX).toBe(50 + FIGHTER_EDGE_MARGIN)
+    expect(b.maxX).toBe(100 - FIGHTER_EDGE_MARGIN)
+    expect(b.minY).toBe(FIGHTER_EDGE_MARGIN)
+    expect(b.maxY).toBe(50 - FIGHTER_EDGE_MARGIN)
+
+    // Side C (Bottom-Left)
+    expect(c.minX).toBe(FIGHTER_EDGE_MARGIN)
+    expect(c.maxX).toBe(50 - FIGHTER_EDGE_MARGIN)
+    expect(c.minY).toBe(50 + FIGHTER_EDGE_MARGIN)
+    expect(c.maxY).toBe(100 - FIGHTER_EDGE_MARGIN)
+
+    // Side D (Bottom-Right)
+    expect(d.minX).toBe(50 + FIGHTER_EDGE_MARGIN)
+    expect(d.maxX).toBe(100 - FIGHTER_EDGE_MARGIN)
+    expect(d.minY).toBe(50 + FIGHTER_EDGE_MARGIN)
+    expect(d.maxY).toBe(100 - FIGHTER_EDGE_MARGIN)
+  })
+
+  it('clamps positions to the respective 4 quadrants', () => {
+    const pC = { x: 80, y: 20 }
+    clampToSideZone(pC, 'c', 4)
+    expect(pC.x).toBe(50 - FIGHTER_EDGE_MARGIN)
+    expect(pC.y).toBe(50 + FIGHTER_EDGE_MARGIN)
+
+    const pD = { x: 20, y: 10 }
+    clampToSideZone(pD, 'd', 4)
+    expect(pD.x).toBe(50 + FIGHTER_EDGE_MARGIN)
+    expect(pD.y).toBe(50 + FIGHTER_EDGE_MARGIN)
+  })
+
+  it('calculates the center for 2 sides and 4 quadrants', () => {
+    expect(sideCenter('a', 2)).toEqual({ x: 25, y: 50 })
+    expect(sideCenter('b', 2)).toEqual({ x: 75, y: 50 })
+    expect(sideCenter('a', 4)).toEqual({ x: 25, y: 25 })
+    expect(sideCenter('b', 4)).toEqual({ x: 75, y: 25 })
+    expect(sideCenter('c', 4)).toEqual({ x: 25, y: 75 })
+    expect(sideCenter('d', 4)).toEqual({ x: 75, y: 75 })
+  })
+
+  it('calculates initial facing angles facing the center', () => {
+    expect(initialFacingAngle('a', 2)).toBe(0)
+    expect(initialFacingAngle('b', 2)).toBe(Math.PI)
+    expect(initialFacingAngle('a', 4)).toBeCloseTo(Math.PI / 4)
+    expect(initialFacingAngle('b', 4)).toBeCloseTo((3 * Math.PI) / 4)
+    expect(initialFacingAngle('c', 4)).toBeCloseTo(-Math.PI / 4)
+    expect(initialFacingAngle('d', 4)).toBeCloseTo((-3 * Math.PI) / 4)
   })
 })
 

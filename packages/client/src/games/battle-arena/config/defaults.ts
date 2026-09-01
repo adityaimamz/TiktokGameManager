@@ -28,6 +28,22 @@ function defaultTriggers(): TriggerRule[] {
       legend: { show: true, caption: 'JOIN {side}', icon: 'join' },
     },
     {
+      id: 'join-c',
+      label: 'Join Side C',
+      enabled: true,
+      when: { kind: 'comment', matchSide: 'c' },
+      then: { actionType: 'spawn', target: 'sideC', value: 0 },
+      legend: { show: true, caption: 'JOIN {side}', icon: 'join' },
+    },
+    {
+      id: 'join-d',
+      label: 'Join Side D',
+      enabled: true,
+      when: { kind: 'comment', matchSide: 'd' },
+      then: { actionType: 'spawn', target: 'sideD', value: 0 },
+      legend: { show: true, caption: 'JOIN {side}', icon: 'join' },
+    },
+    {
       id: 'grow-hp',
       label: 'Grow my blob (HP)',
       enabled: true,
@@ -94,8 +110,11 @@ export function defaultConfig(): BattleArenaConfig {
     sides: {
       a: { name: 'Team A', keyword: 'a', aliases: [], color: '#3b82f6', backgroundImage: null },
       b: { name: 'Team B', keyword: 'b', aliases: [], color: '#ef4444', backgroundImage: null },
+      c: { name: 'Team C', keyword: 'c', aliases: [], color: '#10b981', backgroundImage: null },
+      d: { name: 'Team D', keyword: 'd', aliases: [], color: '#f59e0b', backgroundImage: null },
     },
     gameplay: {
+      sideCount: 2,
       winMode: 'firstToNKills',
       roundsBestOf: 5,
       killsToWinRound: 30,
@@ -122,12 +141,6 @@ export function defaultConfig(): BattleArenaConfig {
         },
         lightning: { branches: 3 },
         laser: { targetRule: 'highestHp' },
-        // Tiga tingkat: gift biasa, gift menengah, gift besar. Yang berskala hanya PRESENTASI,
-        // dan rasionya tepat 2× dari tier terbawah ke teratas.
-        //
-        // durationMultiplier sengaja 1 di ketiganya: 2600 ms sudah dinilai pas creator di OBS,
-        // dan gift mahal harus terasa lebih BESAR, bukan lebih LAMA. Field-nya tetap ada di
-        // skema karena config lama di localStorage masih memuatnya.
         tiers: [
           { minCoins: 0, durationMultiplier: 1, densityMultiplier: 1, radiusMultiplier: 1, calloutIntensity: 1 },
           { minCoins: 100, durationMultiplier: 1, densityMultiplier: 1.5, radiusMultiplier: 1.4, calloutIntensity: 1.5 },
@@ -144,21 +157,15 @@ export function defaultConfig(): BattleArenaConfig {
     triggers: defaultTriggers(),
     effects: defaultEffects(),
     sound: defaultSound(),
-    // Dikalibrasi ke live 50-100 penonton: obrolan ~36/menit, like berdatangan terus,
-    // gift sesekali. Semuanya dijitter di simulator, jadi angkanya rata-rata, bukan kadens.
     simulation: { commentsPerSecond: 0.6, likesPerSecond: 2, giftsPerSecond: 0.1 },
     overlay: {
       transparency: 100,
       mode: 'fullscreen',
-      // TikTok Live tidak punya orientasi lain. Arena tetap terbelah kiri/kanan di portrait
-      // (§15 butir 1) — yang berubah hanya rasio panggung, 9:16 dan bukan 16:9.
       orientation: 'portrait',
       arenaBackground: { kind: 'transparent' },
       flashCeiling: 0.45,
       flashCeilingReducedMotion: 0.15,
     },
-    // Mati secara bawaan: creator yang memutakhirkan tidak boleh tiba-tiba menyiarkan
-    // panel kosong. Ia menyala setelah daftarnya diisi.
     filler: { enabled: false, items: [], imageDurationSec: 15 },
   }
 }

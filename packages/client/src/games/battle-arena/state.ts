@@ -9,6 +9,7 @@ import { createProjectilePool } from './projectiles.js'
 import type { MatchState } from './state-machine.js'
 import type { UltimateTiming } from '@lga/shared'
 import type { NukeType } from './config/index.js'
+import { SESSION_GIFTER_LIMIT } from './types.js'
 import type { Projectile, SessionGifter, SideId } from './types.js'
 
 /**
@@ -125,7 +126,7 @@ export interface BattleArenaState {
   /** Penghitung id ultimate; deterministik karena tidak memakai jam maupun rng. */
   nextUltimateId: number
   /**
-   * Koin gift per orang sepanjang SESI, dan satu-satunya sumber TOP GIFTER.
+   * Koin gift per orang sepanjang SESI, dan satu-satunya sumber TOP 5 GIFTERS.
    *
    * Terpisah dari `Fighter.giftCoins` karena angka itu menjawab pertanyaan lain, dan salah
    * di tiga cara sekaligus untuk pertanyaan ini: ia dinolkan tiap `startNewMatch`, ia hanya
@@ -164,18 +165,25 @@ export function recordSessionGift(
 }
 
 /**
- * Penyumbang terbesar sesi, atau null saat belum ada gift sama sekali.
+ * Lima penyumbang terbesar sesi, atau array kosong saat belum ada gift sama sekali.
  *
- * Seri dipecah oleh username supaya hasilnya stabil antar-frame: dua penyumbang berimbang
- * yang bertukar tempat tiap tick membuat kartunya berkedip.
+ * Urutan dibentuk tanpa menyortir seluruh penonton setiap tick: hanya lima kandidat terbaik
+ * yang ditahan. Seri dipecah oleh username supaya hasilnya stabil antar-frame; dua penyumbang
+ * berimbang yang bertukar tempat tiap tick membuat papannya berkedip.
  */
-export function topSessionGifter(state: BattleArenaState): SessionGifter | null {
-  let best: SessionGifter | null = null
+export function topSessionGifters(state: BattleArenaState): SessionGifter[] {
+  const top: SessionGifter[] = []
   for (const entry of state.sessionGifts.values()) {
-    if (best === null || entry.coins > best.coins) best = entry
-    else if (entry.coins === best.coins && entry.username < best.username) best = entry
+    const insertAt = top.findIndex(
+      (ranked) =>
+        entry.coins > ranked.coins ||
+        (entry.coins === ranked.coins && entry.username < ranked.username),
+    )
+    if (insertAt >= 0) top.splice(insertAt, 0, entry)
+    else if (top.length < SESSION_GIFTER_LIMIT) top.push(entry)
+    if (top.length > SESSION_GIFTER_LIMIT) top.pop()
   }
-  return best
+  return top
 }
 
 /** Ronde yang harus dimenangkan untuk merebut match: mayoritas sederhana dari best-of. */
@@ -192,8 +200,8 @@ export function createBattleArenaState(deps: {
     matchState: 'idle',
     tick: 0,
     roundIndex: 0,
-    roundScore: { a: 0, b: 0 },
-    roundsWon: { a: 0, b: 0 },
+    roundScore: { a: 0, b: 0, c: 0, d: 0 },
+    roundsWon: { a: 0, b: 0, c: 0, d: 0 },
     roundWinner: null,
     matchWinner: null,
     fighters: new FighterRegistry({ rng: deps.rng, clock: deps.clock }),
@@ -216,6 +224,8 @@ export function startNewRound(state: BattleArenaState, gameplay: GameplayConfig)
   state.roundIndex++
   state.roundScore.a = 0
   state.roundScore.b = 0
+  state.roundScore.c = 0
+  state.roundScore.d = 0
   state.roundWinner = null
   state.projectiles.releaseAll()
   state.effects.releaseAll()
@@ -248,8 +258,12 @@ export function resetMatch(
   state.roundIndex = 0
   state.roundScore.a = 0
   state.roundScore.b = 0
+  state.roundScore.c = 0
+  state.roundScore.d = 0
   state.roundsWon.a = 0
   state.roundsWon.b = 0
+  state.roundsWon.c = 0
+  state.roundsWon.d = 0
   state.roundWinner = null
   state.matchWinner = null
   state.projectiles.releaseAll()

@@ -5,6 +5,8 @@ import {
   PROJECTILE_STRIDE,
   SIDE_A,
   SIDE_B,
+  SIDE_C,
+  SIDE_D,
   SNAPSHOT_HEADER_LENGTH,
   ULTIMATE_MAX_TARGETS,
   ULTIMATE_STRIDE,
@@ -12,13 +14,13 @@ import {
 } from '@lga/shared'
 import type { ChatPlatform } from '@lga/shared'
 import { effectProgress } from '../../framework/effects/pool.js'
-import { PROJECTILE_LIFETIME_MS, sideHalfCenter } from './arena.js'
+import { PROJECTILE_LIFETIME_MS, sideCenter } from './arena.js'
 import { EFFECT_TYPES, NUKE_TYPES } from './config/index.js'
 import type { EffectType, NukeType } from './config/index.js'
 import { ultimateProgress } from './ultimate.js'
 import { MATCH_STATES } from './state-machine.js'
 import type { MatchState } from './state-machine.js'
-import { topSessionGifter } from './state.js'
+import { topSessionGifters } from './state.js'
 import type { BattleArenaState } from './state.js'
 import type { SessionGifter, SideId } from './types.js'
 // Di-re-export supaya renderer mengambilnya dari sini bersama RosterEntry; ia dilarang
@@ -36,11 +38,29 @@ export type { SessionGifter } from './types.js'
 const EFFECT_INDEX = new Map<string, number>(EFFECT_TYPES.map((type, index) => [type, index]))
 
 export function sideIndex(side: SideId): number {
-  return side === 'a' ? SIDE_A : SIDE_B
+  switch (side) {
+    case 'a':
+      return SIDE_A
+    case 'b':
+      return SIDE_B
+    case 'c':
+      return SIDE_C
+    case 'd':
+      return SIDE_D
+  }
 }
 
 export function sideFromIndex(index: number): SideId {
-  return index === SIDE_B ? 'b' : 'a'
+  switch (index) {
+    case SIDE_B:
+      return 'b'
+    case SIDE_C:
+      return 'c'
+    case SIDE_D:
+      return 'd'
+    default:
+      return 'a'
+  }
 }
 
 export function effectTypeIndex(type: string): number {
@@ -98,13 +118,17 @@ export class SnapshotWriter {
     buf[2] = matchStateIndex(state.matchState)
     buf[3] = state.roundScore.a
     buf[4] = state.roundScore.b
-    buf[5] = state.roundsWon.a
-    buf[6] = state.roundsWon.b
-    buf[7] = fighterCount
-    buf[8] = projectileCount
-    buf[9] = effectCount
-    buf[10] = state.roundWinner === null ? NO_SIDE : sideIndex(state.roundWinner)
-    buf[11] = ultimateCount
+    buf[5] = state.roundScore.c
+    buf[6] = state.roundScore.d
+    buf[7] = state.roundsWon.a
+    buf[8] = state.roundsWon.b
+    buf[9] = state.roundsWon.c
+    buf[10] = state.roundsWon.d
+    buf[11] = fighterCount
+    buf[12] = projectileCount
+    buf[13] = effectCount
+    buf[14] = state.roundWinner === null ? NO_SIDE : sideIndex(state.roundWinner)
+    buf[15] = ultimateCount
 
     let offset = SNAPSHOT_HEADER_LENGTH
     for (const fighter of state.fighters.values()) {
@@ -149,7 +173,7 @@ export class SnapshotWriter {
     for (const u of state.activeUltimates) {
       // targetX/targetY DITURUNKAN di sini, tidak disimpan di record: dua angka yang selalu
       // bisa dihitung dari satu enum adalah dua tempat yang bisa menyimpang.
-      const target = sideHalfCenter(u.targetSide)
+      const target = sideCenter(u.targetSide, 4)
       buf[offset] = u.casterSlot
       buf[offset + 1] = NUKE_TYPES.indexOf(u.nukeType)
       buf[offset + 2] = u.tier
@@ -191,16 +215,16 @@ export interface RosterPayload {
   version: number
   entries: RosterEntry[]
   /**
-   * Penyumbang terbesar SESI, atau null selama belum ada gift.
+   * Lima penyumbang terbesar SESI, atau array kosong selama belum ada gift.
    *
    * Menumpang payload roster dan bukan topik sinyal sendiri, karena topik baru harus ikut
    * masuk `SIGNAL_TOPICS`, `REPLAYED_TOPICS` di server, dan jalur republish — sementara
    * roster sudah menempuh ketiganya. Ia juga sudah berupa objek, jadi ada tempat menaruhnya.
    *
-   * Konsekuensinya `RosterPublisher` ikut menerbitkan saat pemuncaknya berganti, bukan hanya
+   * Konsekuensinya `RosterPublisher` ikut menerbitkan saat ranking berubah, bukan hanya
    * saat komposisi roster berubah; lihat signature-nya.
    */
-  topGifter: SessionGifter | null
+  topGifters: SessionGifter[]
 }
 
 /**
@@ -210,7 +234,7 @@ export interface RosterPayload {
  * memuat status hidup/mati supaya kematian tidak memicu kiriman JSON tiap detik.
  */
 export class RosterPublisher {
-  private signature = ''
+  private signature: string | null = null
   private current = 0
 
   get version(): number {
@@ -230,19 +254,19 @@ export class RosterPublisher {
     }
     entries.sort((a, b) => a.slotIndex - b.slotIndex)
 
-    // Pemuncak gift ikut ke signature: tanpa itu papan TOP GIFTER hanya berubah saat ada
+    // Ranking gift ikut ke signature: tanpa itu papan TOP GIFTERS hanya berubah saat ada
     // yang join atau keluar, dan gift yang menggeser juara tidak pernah sampai ke overlay.
-    const topGifter = topSessionGifter(state)
+    const topGifters = topSessionGifters(state)
     const signature = [
       ...entries.map(
         (e) => `${e.slotIndex}:${e.platform}:${e.username}:${e.side}:${e.avatarUrl ?? ''}`,
       ),
-      `top:${topGifter?.username ?? ''}:${topGifter?.coins ?? 0}`,
+      ...topGifters.map((gifter, rank) => `top:${rank}:${gifter.username}:${gifter.coins}`),
     ].join('|')
     if (signature === this.signature) return null
 
     this.signature = signature
     this.current++
-    return { version: this.current, entries, topGifter }
+    return { version: this.current, entries, topGifters }
   }
 }

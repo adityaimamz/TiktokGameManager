@@ -3,7 +3,7 @@ import type { ChatMessage, ChatPlatform } from '@lga/shared'
 import type { BattleArenaConfig } from './config/index.js'
 import type { RosterFiller } from './engine.js'
 import type { FighterRegistry } from './fighters.js'
-import { SIDES } from './types.js'
+import { activeSides } from './types.js'
 import { viewerName } from './usernames.js'
 import type { SideId } from './types.js'
 
@@ -31,7 +31,7 @@ export class PracticeFighters implements RosterFiller {
     const target = Math.min(PRACTICE_MIN_PER_SIDE, config.gameplay.maxFightersPerSide)
     const messages: ChatMessage[] = []
 
-    for (const side of SIDES) {
+    for (const side of activeSides(config.gameplay.sideCount)) {
       const missing = target - fighters.countOnSide(side, { aliveOnly: true })
       for (let i = 0; i < missing; i++) {
         const username = viewerName(this.nextIndex++)

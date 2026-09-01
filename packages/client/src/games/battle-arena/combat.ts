@@ -1,7 +1,7 @@
 import { CHARGE_END, NO_SLOT, ULTIMATE_MAX_TARGETS } from '@lga/shared'
 import type { ActionQueue } from '../../framework/actions/queue.js'
 import type { Rng } from '../../framework/rng.js'
-import { ARENA_MAX, ARENA_MIN, sideHalfCenter } from './arena.js'
+import { ARENA_MAX, ARENA_MIN, sideCenter, sideHalfCenter } from './arena.js'
 import { parseTarget } from './actions.js'
 import type { BattleAction, ResolvedTarget } from './actions.js'
 import type { BattleArenaConfig } from './config/index.js'
@@ -9,7 +9,7 @@ import { spawnGameEffect } from './effects.js'
 import type { ActionDiscardReason, EngineEventListener } from './events.js'
 import { fireProjectile } from './projectiles.js'
 import type { BattleArenaState } from './state.js'
-import { SIDES, fighterKey, otherSide } from './types.js'
+import { SIDES, activeSides, enemySides, fighterKey, otherSide } from './types.js'
 import type { Fighter, SideId } from './types.js'
 import {
   enqueueUltimate,
@@ -34,20 +34,43 @@ export interface CombatDeps {
  *
  * Dipakai `nuke`, yang butuh pusat ledakan dan karena itu tidak bisa bekerja pada satu
  * fighter. Scope acak sengaja menghasilkan null.
+ *
+ * Pada mode 4 kubu: enemySide mengincar kuadran musuh yang paling ramai.
  */
-function targetSide(target: ResolvedTarget, state: BattleArenaState): SideId | null {
+function targetSide(
+  target: ResolvedTarget,
+  state: BattleArenaState,
+  config?: BattleArenaConfig,
+): SideId | null {
   if (target.kind === 'side') return target.side
   if (target.kind !== 'relative') return null
   if (target.scope === 'randomAlly' || target.scope === 'randomEnemy') return null
 
   const sender = state.fighters.get(target.key)
   if (sender === undefined) return null
-  return target.scope === 'enemySide' ? otherSide(sender.side) : sender.side
+  if (target.scope === 'ownSide') return sender.side
+
+  const sideCount = config?.gameplay.sideCount ?? 2
+  const enemies = enemySides(sender.side, sideCount)
+  if (enemies.length === 1) return enemies[0] as SideId
+
+  // Kuadran musuh yang paling ramai (paling banyak fighter hidup)
+  let maxAlive = -1
+  let mostCrowded: SideId = enemies[0] as SideId
+  for (const e of enemies) {
+    const count = state.fighters.countOnSide(e, { aliveOnly: true })
+    if (count > maxAlive) {
+      maxAlive = count
+      mostCrowded = e
+    }
+  }
+  return mostCrowded
 }
 
 /** Fighter yang dituju sebuah action. Target tak dikenal menghasilkan daftar kosong. */
 export function resolveActionTargets(action: BattleAction, deps: CombatDeps): Fighter[] {
   const state = deps.state
+  const sideCount = deps.config.gameplay.sideCount
   const target = parseTarget(action.target)
   switch (target.kind) {
     case 'fighter': {
@@ -64,16 +87,33 @@ export function resolveActionTargets(action: BattleAction, deps: CombatDeps): Fi
       const sender = state.fighters.get(target.key)
       if (sender === undefined) return []
 
-      const wantsEnemy = target.scope === 'enemySide' || target.scope === 'randomEnemy'
-      const side = wantsEnemy ? otherSide(sender.side) : sender.side
-      const pool = state.fighters.list().filter((f) => f.side === side)
-      if (target.scope === 'ownSide' || target.scope === 'enemySide') return pool
+      if (target.scope === 'ownSide') {
+        return state.fighters.list().filter((f) => f.side === sender.side)
+      }
 
-      // Diurutkan slotIndex lebih dulu: urutan iterasi Map bergantung pada sejarah
-      // penyisipan dan penghapusan, jadi tanpa ini seed yang sama bisa memilih korban
-      // berbeda setelah seseorang keluar.
-      const alive = pool.filter((f) => f.alive).sort((a, b) => a.slotIndex - b.slotIndex)
-      return alive.length === 0 ? [] : [deps.rng.pick(alive)]
+      if (target.scope === 'randomAlly') {
+        const pool = state.fighters
+          .list()
+          .filter((f) => f.side === sender.side && f.alive)
+          .sort((a, b) => a.slotIndex - b.slotIndex)
+        return pool.length === 0 ? [] : [deps.rng.pick(pool)]
+      }
+
+      if (target.scope === 'enemySide') {
+        const targetQuadrant = targetSide(target, state, deps.config) ?? otherSide(sender.side)
+        return state.fighters.list().filter((f) => f.side === targetQuadrant)
+      }
+
+      if (target.scope === 'randomEnemy') {
+        const enemies = enemySides(sender.side, sideCount)
+        const alive = state.fighters
+          .list()
+          .filter((f) => f.alive && enemies.includes(f.side))
+          .sort((a, b) => a.slotIndex - b.slotIndex)
+        return alive.length === 0 ? [] : [deps.rng.pick(alive)]
+      }
+
+      return []
     }
     case 'unknown':
       return []
@@ -85,37 +125,42 @@ export function resolveActionTargets(action: BattleAction, deps: CombatDeps): Fi
  *
  * Bukan acak murni. Acak murni akan menumpuk gifter di satu sisi dan merusak keseimbangan
  * yang justru dijaga maxFightersPerSide; rng hanya memutus seri.
- *
- * `aliveOnly` bukan detail. Fighter mati tetap terdaftar sepanjang ronde, jadi menghitung
- * registrasi membuat sisi yang baru saja DIBANTAI terlihat paling ramai — dan gifter
- * dikirim ke sisi yang sedang menang, persis kebalikan dari maksudnya. Yang mengukur
- * kekuatan adalah siapa yang masih berdiri. Jatah kursi tetap dihitung atas registrasi;
- * itu urusan `join()`, bukan urusan di sini.
  */
 export function preferredSide(deps: CombatDeps): SideId {
-  const a = deps.state.fighters.countOnSide('a', { aliveOnly: true })
-  const b = deps.state.fighters.countOnSide('b', { aliveOnly: true })
-  if (a < b) return 'a'
-  if (b < a) return 'b'
-  return deps.rng.pick(SIDES)
+  const active = activeSides(deps.config.gameplay.sideCount)
+  let minAlive = Number.POSITIVE_INFINITY
+  let bestSides: SideId[] = []
+
+  for (const s of active) {
+    const count = deps.state.fighters.countOnSide(s, { aliveOnly: true })
+    if (count < minAlive) {
+      minAlive = count
+      bestSides = [s]
+    } else if (count === minAlive) {
+      bestSides.push(s)
+    }
+  }
+
+  return bestSides.length === 1 ? (bestSides[0] as SideId) : deps.rng.pick(bestSides)
 }
 
 /**
  * Gift dari viewer yang belum bermain mendaftarkannya lebih dulu (spec §6.2).
- *
- * Digantung pada action.giftName, bukan pada tipe aksinya: "bayar lalu tidak terjadi apa-apa"
- * sama buruknya untuk heal, hasten, maupun ultimate. Kedua sisi penuh bukan error — pemanggil
- * melanjutkan dengan casterSlot NO_SLOT, dan gift history tetap menyebut namanya.
  */
 export function ensureGifterJoined(action: BattleAction, deps: CombatDeps): void {
   if (action.giftName === null || action.actor === null) return
   if (!deps.config.gameplay.autoJoinGifter) return
   if (deps.state.fighters.get(fighterKey(action.actor)) !== undefined) return
 
-  const first = preferredSide(deps)
-  let result = deps.state.fighters.join(action.actor, first, deps.config.gameplay)
+  const preferred = preferredSide(deps)
+  let result = deps.state.fighters.join(action.actor, preferred, deps.config.gameplay)
   if (result.fighter === null) {
-    result = deps.state.fighters.join(action.actor, otherSide(first), deps.config.gameplay)
+    const active = activeSides(deps.config.gameplay.sideCount)
+    for (const s of active) {
+      if (s === preferred) continue
+      result = deps.state.fighters.join(action.actor, s, deps.config.gameplay)
+      if (result.fighter !== null) break
+    }
   }
   if (result.fighter === null) return
 
@@ -170,6 +215,7 @@ export function applyDamage(
   amount: number,
   attacker: Fighter | null,
   deps: CombatDeps,
+  sideOverride?: SideId,
 ): void {
   if (!target.alive) return
 
@@ -188,9 +234,17 @@ export function applyDamage(
   target.velocity.y = 0
   target.targetKey = null
 
+  const scoringSide =
+    attacker !== null
+      ? (attacker.key !== target.key ? attacker.side : null)
+      : (sideOverride ?? null)
+
   if (attacker !== null && attacker.key !== target.key) {
     attacker.kills++
-    deps.state.roundScore[attacker.side]++
+  }
+
+  if (scoringSide !== null) {
+    deps.state.roundScore[scoringSide]++
   }
 
   // Semua yang mengincar korban harus memilih ulang seketika (Req 10 AC4).
@@ -212,10 +266,10 @@ export function applyDamage(
   // yang memenangkan ronde saat kedua sisi mencapai target pada event yang sama (Req 11 AC4).
   if (
     deps.state.roundWinner === null &&
-    attacker !== null &&
-    deps.state.roundScore[attacker.side] >= deps.config.gameplay.killsToWinRound
+    scoringSide !== null &&
+    deps.state.roundScore[scoringSide] >= deps.config.gameplay.killsToWinRound
   ) {
-    deps.state.roundWinner = attacker.side
+    deps.state.roundWinner = scoringSide
   }
 }
 
@@ -290,7 +344,8 @@ export function applyAction(action: BattleAction, deps: CombatDeps): void {
     case 'damage': {
       const targets = resolveActionTargets(action, deps).filter((f) => f.alive)
       if (targets.length === 0) return discard('inactiveTarget')
-      for (const fighter of targets) applyDamage(fighter, action.value, null, deps)
+      const actorFighter = action.actor ? deps.state.fighters.get(fighterKey(action.actor)) ?? null : null
+      for (const fighter of targets) applyDamage(fighter, action.value, actorFighter, deps)
       deps.emit({ type: 'actionApplied', action })
       return
     }
@@ -335,14 +390,20 @@ export function applyAction(action: BattleAction, deps: CombatDeps): void {
       // berujung discard('unknownTarget'), dan itu menabrak aturan keras §1: orangnya sudah
       // membayar. Jatuhannya lawan dari preferredSide — sisi yang sama yang akan dipilih
       // ensureGifterJoined, jadi konsisten, bukan asal.
-      const resolved = targetSide(parseTarget(action.target), deps.state)
+      const resolved = targetSide(parseTarget(action.target), deps.state, deps.config)
       const target = resolved ?? otherSide(caster?.side ?? preferredSide(deps))
       const casterSide = caster?.side ?? otherSide(target)
 
       // Tengah tepi LUAR sisi caster. Ditulis eksplisit supaya ultimate tanpa caster tidak
       // pernah lahir di (0,0) dan terlihat seperti bug.
       const origin = caster ?? {
-        position: { x: casterSide === 'a' ? ARENA_MIN : ARENA_MAX, y: (ARENA_MIN + ARENA_MAX) / 2 },
+        position:
+          deps.config.gameplay.sideCount === 4
+            ? {
+                x: casterSide === 'a' || casterSide === 'c' ? ARENA_MIN : ARENA_MAX,
+                y: casterSide === 'a' || casterSide === 'b' ? 25 : 75,
+              }
+            : { x: casterSide === 'a' ? ARENA_MIN : ARENA_MAX, y: (ARENA_MIN + ARENA_MAX) / 2 },
       }
 
       const rule =
@@ -543,8 +604,13 @@ function landUltimate(u: ActiveUltimate, deps: CombatDeps): void {
     hit.add(victim.slotIndex)
     u.hitSlots.push(victim.slotIndex)
 
+    const caster =
+      deps.state.fighters.get(u.gifterKey) ??
+      (u.casterSlot !== NO_SLOT ? fighterBySlot(deps, u.casterSlot) : undefined) ??
+      null
+
     const before = victim.hp
-    applyDamage(victim, u.damage, null, deps)
+    applyDamage(victim, u.damage, caster, deps, u.side)
     u.totalDamage += before - victim.hp
     if (!victim.alive) u.killCount++
   }

@@ -1,5 +1,5 @@
 import { ULTIMATE_MAX_TARGETS } from '@lga/shared'
-import { sideHalfCenter } from './arena.js'
+import { sideCenter } from './arena.js'
 import type { BattleArenaConfig, NukeType } from './config/index.js'
 import type { BattleArenaState } from './state.js'
 import type { Fighter, SideId } from './types.js'
@@ -37,8 +37,12 @@ export function targetCountFor(
 }
 
 /** Musuh yang hidup, diurutkan dari yang terdekat ke pusat zona sasaran. */
-function livingByDistance(state: BattleArenaState, targetSide: SideId): Fighter[] {
-  const center = sideHalfCenter(targetSide)
+function livingByDistance(
+  state: BattleArenaState,
+  targetSide: SideId,
+  config?: BattleArenaConfig,
+): Fighter[] {
+  const center = sideCenter(targetSide, config?.gameplay.sideCount ?? 2)
   const distance = (f: Fighter): number =>
     (f.position.x - center.x) ** 2 + (f.position.y - center.y) ** 2
 
@@ -85,7 +89,7 @@ export function lockTargets(
   targetSide: SideId,
   tierIndex: number,
 ): number[] {
-  const living = livingByDistance(state, targetSide)
+  const living = livingByDistance(state, targetSide, config)
   if (living.length === 0) return []
 
   if (nukeType === 'laser') {

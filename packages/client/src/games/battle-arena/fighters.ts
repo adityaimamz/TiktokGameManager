@@ -4,11 +4,11 @@ import type { Vec2 } from '../../framework/entity/entity.js'
 import { createEntity } from '../../framework/entity/factory.js'
 import { EntityPool } from '../../framework/entity/pool.js'
 import type { Rng } from '../../framework/rng.js'
-import type { GameplayConfig } from './config/index.js'
-import { fighterHitRadius } from './arena.js'
+import type { GameplayConfig, SideCount } from './config/index.js'
+import { fighterHitRadius, initialFacingAngle } from './arena.js'
 import { findSpawnPosition } from './spawn.js'
 import type { Occupant } from './spawn.js'
-import { fighterKey } from './types.js'
+import { activeSides, fighterKey } from './types.js'
 import type { ActorIdentity, Fighter, SideId } from './types.js'
 
 export type JoinOutcome = 'joined' | 'switched' | 'rejoined' | 'alreadyOnSide' | 'sideFull'
@@ -238,8 +238,24 @@ export class FighterRegistry {
     return keys.length
   }
 
+  /**
+   * Menghapus fighter yang berada di sisi yang tidak lagi aktif (misal beralih dari 4 kubu ke 2 kubu).
+   */
+  pruneInactiveSides(sideCount: SideCount = 2): number {
+    const active = activeSides(sideCount)
+    const keysToRemove: string[] = []
+    for (const fighter of this.byKey.values()) {
+      if (!active.includes(fighter.side)) {
+        keysToRemove.push(fighter.key)
+      }
+    }
+    for (const key of keysToRemove) this.remove(key)
+    return keysToRemove.length
+  }
+
   /** Awal ronde baru: semua hidup lagi, HP penuh, posisi baru, statistik dipertahankan. */
   restoreForNewRound(gameplay: GameplayConfig): void {
+    this.pruneInactiveSides(gameplay.sideCount)
     const placed: Occupant[] = []
     for (const fighter of this.byKey.values()) {
       // HP-nya baru dipulihkan beberapa baris di bawah; ukuran yang berlaku setelah ronde
@@ -248,6 +264,7 @@ export class FighterRegistry {
       const position = findSpawnPosition({
         rng: this.rng,
         side: fighter.side,
+        sideCount: gameplay.sideCount,
         occupied: placed,
         radius,
       })
@@ -262,6 +279,7 @@ export class FighterRegistry {
       fighter.velocity.y = 0
       fighter.attackIntervalMs = gameplay.attackIntervalSec * 1000
       this.staggerFirstShot(fighter)
+      fighter.facingAngle = initialFacingAngle(fighter.side, gameplay.sideCount)
     }
   }
 
@@ -312,6 +330,7 @@ export class FighterRegistry {
    * sini — `startNewRound` menyebarkan ulang semua orang sesaat sebelum ronde pertama.
    */
   startNewMatch(gameplay: GameplayConfig): void {
+    this.pruneInactiveSides(gameplay.sideCount)
     for (const fighter of this.byKey.values()) {
       fighter.kills = 0
       fighter.deaths = 0
@@ -367,7 +386,7 @@ export class FighterRegistry {
         radius: fighterHitRadius(f.hp, gameplay.baseHp),
       }))
     // Yang baru datang selalu lahir sebesar baseHp, jadi radiusnya radius dasar.
-    const position = findSpawnPosition({ rng: this.rng, side, occupied })
+    const position = findSpawnPosition({ rng: this.rng, side, sideCount: gameplay.sideCount, occupied })
 
     fighter.key = fighterKey(actor)
     fighter.platform = actor.platform
@@ -391,7 +410,7 @@ export class FighterRegistry {
     fighter.targetKey = null
     this.staggerFirstShot(fighter)
     fighter.likeAccumulator = 0
-    fighter.facingAngle = side === 'a' ? 0 : Math.PI
+    fighter.facingAngle = initialFacingAngle(side, gameplay.sideCount)
     fighter.nextIdleTurnAtMs = 0
   }
 

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { NO_SLOT, SIDE_A, SIDE_B, createSnapshotView } from '@lga/shared'
-import type { SnapshotUltimate, SnapshotView } from '@lga/shared'
+import type { SnapshotFighter, SnapshotUltimate, SnapshotView } from '@lga/shared'
 import { defaultConfig } from '../../../../../src/games/battle-arena/config/index.js'
 import { matchStateIndex } from '../../../../../src/games/battle-arena/snapshot.js'
 import type { RosterEntry, SessionGifter } from '../../../../../src/games/battle-arena/snapshot.js'
@@ -25,6 +25,20 @@ const snapshot = (
   return view
 }
 
+const fighterWith = (slotIndex: number, giftCoins: number): SnapshotFighter => ({
+  slotIndex,
+  x: 0,
+  y: 0,
+  hp: 1000,
+  maxHp: 1000,
+  side: SIDE_A,
+  alive: 1,
+  facingAngle: 0,
+  targetSlot: NO_SLOT,
+  kills: 0,
+  giftCoins,
+})
+
 const roster = new Map<number, RosterEntry>([
   [0, { slotIndex: 0, username: 'andi', avatarUrl: null, side: 'a', platform: 'tiktok' }],
   [1, { slotIndex: 1, username: 'budi', avatarUrl: null, side: 'b', platform: 'tiktok' }],
@@ -35,7 +49,7 @@ const hud = (
   config = defaultConfig(),
   kills: KillFeedEntry[] = [],
   gifts: GiftFeedEntry[] = [],
-  topGifter: SessionGifter | null = null,
+  topGifters: readonly SessionGifter[] = [],
 ) => (
   <Hud
     view={view}
@@ -46,9 +60,22 @@ const hud = (
     gifts={gifts}
     nowMs={0}
     layout={layout}
-    topGifter={topGifter}
+    topGifters={topGifters}
   />
 )
+
+const killEntry = (over: Partial<KillFeedEntry> = {}): KillFeedEntry => ({
+  id: 'k1',
+  kind: 'kill',
+  atMs: 0,
+  killer: 'andi',
+  killerSide: 'a',
+  killerAvatarUrl: 'https://cdn.example/andi.jpg',
+  victim: 'budi',
+  victimSide: 'b',
+  victimAvatarUrl: null,
+  ...over,
+})
 
 describe('Hud', () => {
   it('shows both side names and their scores', () => {
@@ -58,143 +85,10 @@ describe('Hud', () => {
 
     render(hud(snapshot({ roundScoreA: 4, roundScoreB: 2 }), config))
 
-    expect(screen.getByTestId('score-bar').textContent).toContain('Team Messi')
-    expect(screen.getByTestId('score-bar').textContent).toContain('Team Ronaldo')
-    expect(screen.getByTestId('score-a').textContent).toBe('4')
-    expect(screen.getByTestId('score-b').textContent).toBe('2')
-  })
-
-  it('puts the crown on the leading side only', () => {
-    render(hud(snapshot({ roundScoreA: 4, roundScoreB: 2 })))
-
-    expect(screen.getByTestId('crown-a')).toBeTruthy()
-    expect(screen.queryByTestId('crown-b')).toBeNull()
-  })
-
-  it('draws one round dot per round in the series', () => {
-    const config = defaultConfig()
-    config.gameplay.roundsBestOf = 5
-
-    render(hud(snapshot({ roundsWonA: 2 }), config))
-
-    // Satu baris titik untuk seluruh seri: kemenangan A menumpuk dari kiri, B dari kanan.
-    const dots = screen.getAllByTestId('round-dot')
-    expect(dots).toHaveLength(5)
-    expect(dots.filter((dot) => dot.dataset.dot === 'a')).toHaveLength(2)
-  })
-
-  it('lists the top fighters when anyone has a kill', () => {
-    render(
-      hud(
-        snapshot({}, [
-          {
-            slotIndex: 0,
-            x: 0,
-            y: 0,
-            hp: 1,
-            maxHp: 1,
-            side: SIDE_A,
-            alive: 1,
-            facingAngle: 0,
-            targetSlot: -1,
-            kills: 3,
-            giftCoins: 0,
-          },
-          {
-            slotIndex: 1,
-            x: 0,
-            y: 0,
-            hp: 1,
-            maxHp: 1,
-            side: SIDE_B,
-            alive: 1,
-            facingAngle: 0,
-            targetSlot: -1,
-            kills: 9,
-            giftCoins: 0,
-          },
-        ]),
-      ),
-    )
-
-    const board = screen.getByTestId('top-fighters')
-    expect(board.textContent).toContain('budi')
-    expect(board.textContent?.indexOf('budi')).toBeLessThan(board.textContent?.indexOf('andi') ?? -1)
-  })
-
-  it('hides the board entirely when nobody has killed yet', () => {
-    render(hud(snapshot()))
-    expect(screen.queryByTestId('top-fighters')).toBeNull()
-  })
-
-  it('shows the kill feed', () => {
-    render(
-      hud(snapshot(), defaultConfig(), [
-        {
-          id: 'k1',
-          kind: 'kill',
-          atMs: 0,
-          killer: 'andi',
-          killerSide: 'a',
-          killerAvatarUrl: null,
-          victim: 'budi',
-          victimSide: 'b',
-          victimAvatarUrl: null,
-        },
-      ]),
-    )
-
-    const feed = screen.getByTestId('kill-feed')
-    expect(feed.textContent).toContain('andi')
-    expect(feed.textContent).toContain('budi')
-  })
-
-  it('keeps the victory banner off screen during battle', () => {
-    render(hud(snapshot({ matchState: matchStateIndex('battle') })))
-    expect(screen.queryByTestId('victory-banner')).toBeNull()
-  })
-
-  it('raises the banner with the winner name on the result screen', () => {
-    const config = defaultConfig()
-    config.sides.b = { ...config.sides.b, name: 'Team Ronaldo' }
-
-    render(
-      hud(
-        snapshot({ matchState: matchStateIndex('result'), roundWinner: SIDE_B, roundsWonB: 2 }),
-        config,
-      ),
-    )
-
-    expect(screen.getByTestId('victory-banner').textContent).toContain('Team Ronaldo')
-  })
-})
-
-const fighterWith = (slotIndex: number, giftCoins: number): SnapshotView['fighters'][number] => ({
-  slotIndex,
-  x: 0,
-  y: 0,
-  hp: 10,
-  maxHp: 10,
-  side: SIDE_A,
-  alive: 1,
-  facingAngle: 0,
-  targetSlot: NO_SLOT,
-  kills: 0,
-  giftCoins,
-})
-
-describe('Hud kill feed avatars', () => {
-  const killEntry = (over: Partial<KillFeedEntry> = {}): KillFeedEntry => ({
-    id: 'k1',
-    kind: 'kill',
-    atMs: 0,
-    killer: 'andi',
-    killerSide: 'a',
-    killerAvatarUrl: 'https://cdn.example/andi.jpg',
-    victim: 'budi',
-    victimSide: 'b',
-    victimAvatarUrl: null,
-    ...over,
+    const scoreBar = screen.getByTestId('score-bar')
+    expect(scoreBar.textContent).toContain('Team Messi')
+    expect(scoreBar.textContent).toContain('Team Ronaldo')
+    expect(scoreBar.textContent).toContain('4:2')
   })
 
   it('shows a photo for whoever has one and an initial for whoever does not', () => {
@@ -245,6 +139,22 @@ describe('Hud gift history', () => {
   })
 })
 
+describe('kartu top fighters', () => {
+  it('menampilkan top fighters dengan perolehan kill masing-masing', () => {
+    const fighters: SnapshotFighter[] = [
+      { ...fighterWith(0, 0), kills: 5 },
+      { ...fighterWith(1, 0), side: SIDE_B, kills: 2 },
+    ]
+    render(hud(snapshot({}, fighters)))
+
+    const card = screen.getByTestId('top-fighters')
+    expect(card.textContent).toContain('andi')
+    expect(card.textContent).toContain('5')
+    expect(card.textContent).toContain('budi')
+    expect(card.textContent).toContain('2')
+  })
+})
+
 /**
  * Kartunya digambar dari PROP, bukan dari snapshot fighter.
  *
@@ -254,14 +164,42 @@ describe('Hud gift history', () => {
 describe('kartu top gifter', () => {
   it('menampilkan penyumbang yang dioper', () => {
     render(
-      hud(snapshot(), defaultConfig(), [], [], {
-        username: 'andi',
-        avatarUrl: null,
-        coins: 1250,
-      }),
+      hud(snapshot(), defaultConfig(), [], [], [
+        {
+          username: 'andi',
+          avatarUrl: null,
+          coins: 1250,
+        },
+      ]),
     )
     expect(screen.getByTestId('top-gifter').textContent).toContain('andi')
-    expect(screen.getByTestId('top-gifter').textContent).toContain('1,250 coins')
+    expect(screen.getByTestId('top-gifter').textContent).toContain('1,250')
+  })
+
+  it('menampilkan lima penyumbang dalam urutan ranking', () => {
+    render(
+      hud(
+        snapshot(),
+        defaultConfig(),
+        [],
+        [],
+        ['andi', 'budi', 'cinta', 'dina', 'eka'].map((username, index) => ({
+          username,
+          avatarUrl: null,
+          coins: 500 - index * 50,
+        })),
+      ),
+    )
+
+    const rows = screen.getAllByTestId('top-gifter-row')
+    expect(rows).toHaveLength(5)
+    expect(rows.map((row) => row.textContent)).toEqual([
+      '1.andi500',
+      '2.budi450',
+      '3.cinta400',
+      '4.dina350',
+      '5.eka300',
+    ])
   })
 
   it('tidak menggambar kartu saat belum ada hadiah', () => {

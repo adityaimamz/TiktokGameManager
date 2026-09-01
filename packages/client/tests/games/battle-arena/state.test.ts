@@ -9,7 +9,7 @@ import {
   resetMatch,
   roundsNeeded,
   startNewRound,
-  topSessionGifter,
+  topSessionGifters,
 } from '../../../src/games/battle-arena/state.js'
 import { fireProjectile } from '../../../src/games/battle-arena/projectiles.js'
 import { spawnGameEffect } from '../../../src/games/battle-arena/effects.js'
@@ -33,8 +33,8 @@ describe('createBattleArenaState', () => {
     expect(state.matchState).toBe('idle')
     expect(state.tick).toBe(0)
     expect(state.roundIndex).toBe(0)
-    expect(state.roundScore).toEqual({ a: 0, b: 0 })
-    expect(state.roundsWon).toEqual({ a: 0, b: 0 })
+    expect(state.roundScore).toEqual({ a: 0, b: 0, c: 0, d: 0 })
+    expect(state.roundsWon).toEqual({ a: 0, b: 0, c: 0, d: 0 })
     expect(state.roundWinner).toBeNull()
     expect(state.matchWinner).toBeNull()
     expect(state.fighters.count).toBe(0)
@@ -63,7 +63,7 @@ describe('startNewRound', () => {
     startNewRound(state, gameplay)
 
     expect(state.roundIndex).toBe(1)
-    expect(state.roundScore).toEqual({ a: 0, b: 0 })
+    expect(state.roundScore).toEqual({ a: 0, b: 0, c: 0, d: 0 })
     expect(state.roundWinner).toBeNull()
     expect(a.alive).toBe(true)
     expect(a.hp).toBe(a.maxHp)
@@ -88,7 +88,7 @@ describe('startNewRound', () => {
     const state = makeState()
     state.roundsWon.b = 2
     startNewRound(state, gameplay)
-    expect(state.roundsWon).toEqual({ a: 0, b: 2 })
+    expect(state.roundsWon).toEqual({ a: 0, b: 2, c: 0, d: 0 })
   })
 })
 
@@ -108,8 +108,8 @@ describe('resetMatch', () => {
     resetMatch(state, gameplay)
 
     expect(state.fighters.count).toBe(0)
-    expect(state.roundScore).toEqual({ a: 0, b: 0 })
-    expect(state.roundsWon).toEqual({ a: 0, b: 0 })
+    expect(state.roundScore).toEqual({ a: 0, b: 0, c: 0, d: 0 })
+    expect(state.roundsWon).toEqual({ a: 0, b: 0, c: 0, d: 0 })
     expect(state.roundIndex).toBe(0)
     expect(state.roundWinner).toBeNull()
     expect(state.matchWinner).toBeNull()
@@ -140,13 +140,12 @@ describe('resetMatch', () => {
     expect(kept?.maxHp).toBe(gameplay.baseHp)
     // Lobi berikutnya menghitung yang HIDUP; roster yang mati semua tidak akan maju.
     expect(kept?.alive).toBe(true)
-    expect(state.roundsWon).toEqual({ a: 0, b: 0 })
+    expect(state.roundsWon).toEqual({ a: 0, b: 0, c: 0, d: 0 })
   })
 })
 
 /**
- * Tally gift SESI — sumber tunggal TOP GIFTER.
- *
+ * Tally gift SESI — sumber tunggal TOP 5 GIFTERS.
  * Ia menggantikan penyapuan `Fighter.giftCoins` yang salah di tiga cara sekaligus, dan
  * ketiganya dikunci di sini: bertahan lintas match, menerima penonton tanpa fighter, dan
  * tidak bergantung pada urutan `ensureGifterJoined`.
@@ -163,7 +162,9 @@ describe('tally gift sesi', () => {
     recordSessionGift(state, gifter('andi'), 100)
     recordSessionGift(state, gifter('andi'), 54)
 
-    expect(topSessionGifter(state)).toEqual({ username: 'andi', avatarUrl: null, coins: 154 })
+    expect(topSessionGifters(state)).toEqual([
+      { username: 'andi', avatarUrl: null, coins: 154 },
+    ])
   })
 
   it('memilih penyumbang terbesar, bukan yang terakhir', () => {
@@ -171,7 +172,7 @@ describe('tally gift sesi', () => {
     recordSessionGift(state, gifter('andi'), 6854)
     recordSessionGift(state, gifter('budi'), 104)
 
-    expect(topSessionGifter(state)?.username).toBe('andi')
+    expect(topSessionGifters(state)[0]?.username).toBe('andi')
   })
 
   it('menghitung penonton yang TIDAK punya fighter sama sekali', () => {
@@ -181,7 +182,7 @@ describe('tally gift sesi', () => {
     recordSessionGift(state, gifter('hakata1368'), 6854)
 
     expect([...state.fighters.values()]).toHaveLength(0)
-    expect(topSessionGifter(state)?.coins).toBe(6854)
+    expect(topSessionGifters(state)[0]?.coins).toBe(6854)
   })
 
   it('memutus seri dengan username supaya kartunya tidak berkedip', () => {
@@ -189,14 +190,32 @@ describe('tally gift sesi', () => {
     recordSessionGift(state, gifter('budi'), 50)
     recordSessionGift(state, gifter('andi'), 50)
 
-    expect(topSessionGifter(state)?.username).toBe('andi')
+    expect(topSessionGifters(state)[0]?.username).toBe('andi')
+  })
+
+  it('mengurutkan dan membatasi papan pada lima penyumbang teratas', () => {
+    const state = makeState()
+    recordSessionGift(state, gifter('fajar'), 10)
+    recordSessionGift(state, gifter('budi'), 50)
+    recordSessionGift(state, gifter('dina'), 30)
+    recordSessionGift(state, gifter('andi'), 50)
+    recordSessionGift(state, gifter('eka'), 20)
+    recordSessionGift(state, gifter('cinta'), 40)
+
+    expect(topSessionGifters(state).map((entry) => entry.username)).toEqual([
+      'andi',
+      'budi',
+      'cinta',
+      'dina',
+      'eka',
+    ])
   })
 
   it('mengabaikan gift tanpa koin', () => {
     const state = makeState()
     recordSessionGift(state, gifter('andi'), 0)
 
-    expect(topSessionGifter(state)).toBeNull()
+    expect(topSessionGifters(state)).toEqual([])
   })
 
   it('mempertahankan avatar lama saat gift berikutnya datang tanpa avatar', () => {
@@ -204,7 +223,7 @@ describe('tally gift sesi', () => {
     recordSessionGift(state, gifter('andi', 'https://x.test/a.png'), 10)
     recordSessionGift(state, gifter('andi'), 10)
 
-    expect(topSessionGifter(state)?.avatarUrl).toBe('https://x.test/a.png')
+    expect(topSessionGifters(state)[0]?.avatarUrl).toBe('https://x.test/a.png')
   })
 
   it('BERTAHAN saat match melingkar ke match berikutnya', () => {
@@ -216,7 +235,7 @@ describe('tally gift sesi', () => {
     // menampilkan 104 koin sementara panel Gift menampilkan 6.854.
     resetMatch(state, defaultConfig().gameplay, true)
 
-    expect(topSessionGifter(state)?.coins).toBe(6854)
+    expect(topSessionGifters(state)[0]?.coins).toBe(6854)
   })
 
   it('DIHAPUS oleh Reset creator, bersama arenanya', () => {
@@ -225,6 +244,6 @@ describe('tally gift sesi', () => {
 
     resetMatch(state, defaultConfig().gameplay)
 
-    expect(topSessionGifter(state)).toBeNull()
+    expect(topSessionGifters(state)).toEqual([])
   })
 })

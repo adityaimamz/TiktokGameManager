@@ -102,7 +102,7 @@ export interface PlayerProgress extends PlayerIdentity {
  * jalur progres (spec Plan 13 §3 — satu kolom, satu penulis).
  */
 export interface MatchPlayerRecord extends PlayerIdentity {
-  side: 'a' | 'b'
+  side: 'a' | 'b' | 'c' | 'd'
   kills: number
   deaths: number
 }
@@ -118,7 +118,7 @@ export interface MatchRecord {
   gameId: string
   startedAtMs: number
   endedAtMs: number
-  winnerSide: 'a' | 'b' | null
+  winnerSide: 'a' | 'b' | 'c' | 'd' | null
   roundsWonA: number
   roundsWonB: number
   totalFighters: number
