@@ -145,11 +145,20 @@ export function createRig(config: BattleArenaConfig, hooks: RigHooks): Rig {
   })
 
   const audio = new AudioEngine()
-  const sounds = new SoundQueue({ clock, play: (id, volume) => audio.play(id, volume) })
+  const sounds = new SoundQueue({
+    clock,
+    play: (id, volume) => {
+      audio.play(id, volume)
+      signals.publishSound({ cue: id, volume })
+    },
+  })
   const attackSounds = new SoundQueue({
     clock,
     throttleMs: ATTACK_THROTTLE_MS,
-    play: (id, volume) => audio.play(id, volume),
+    play: (id, volume) => {
+      audio.play(id, volume)
+      signals.publishSound({ cue: id, volume })
+    },
   })
 
   /**

@@ -28,6 +28,7 @@ export function VictoryBanner({
         gap: scaled(layout, 12),
         background: 'rgba(0,0,0,0.6)',
         color: '#fff',
+        zIndex: 40,
       }}
     >
       <div style={{ fontSize: scaled(layout, 24), opacity: 0.75 }}>

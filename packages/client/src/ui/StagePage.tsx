@@ -41,6 +41,8 @@ import { isRemoteOverlay } from './routing.js'
 import { createAudioChannels } from './media/audio-channels.js'
 import type { AudioFactory } from './media/audio-channels.js'
 import { bannerFromCue, emptyQueue, expireBanner, pushBanner } from './media/cue-queue.js'
+import { AudioEngine } from '../platform/audio/audio.js'
+import type { AudioContextLike } from '../platform/audio/audio.js'
 
 /**
  * Konstanta MODUL, bukan dihitung di dalam effect.
@@ -61,6 +63,8 @@ export interface StagePageProps {
   cancelFrame?: FrameCanceller
   /** Diinjeksi di test; produksi memakai elemen `Audio` peramban. */
   createAudio?: AudioFactory
+  audioEngine?: AudioEngine
+  createAudioContext?: () => AudioContextLike | null
 }
 
 /**
@@ -163,6 +167,9 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
   const [gifts, setGifts] = useState<GiftFeedEntry[]>([])
   const [banners, setBanners] = useState(emptyQueue)
   const audio = useRef(createAudioChannels(props.createAudio)).current
+  const audioEngine = useRef(
+    props.audioEngine ?? new AudioEngine({ createContext: props.createAudioContext }),
+  ).current
 
   const viewport = useViewportSize()
   const size = props.size ?? viewport
@@ -213,6 +220,7 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
     // dibutuhkan — dan di overlay yang berjalan di device lain, terlambatnya terasa.
     // Pernyataan biasa, BUKAN anggota `offs`: array itu isinya fungsi berhenti-berlangganan.
     audio.warm(ULTIMATE_SOUND_URLS)
+    void audioEngine.resume?.()
 
     const offs = [
       signals.onSnapshot(acceptSnapshot),
@@ -235,12 +243,16 @@ export function StagePage(props: StagePageProps = {}): ReactElement {
         const banner = bannerFromCue(cue)
         if (banner !== null) setBanners((queue) => pushBanner(queue, banner, now()))
       }),
+      signals.onSound((payload) => {
+        audioEngine.play(payload.cue, payload.volume)
+      }),
     ]
     return () => {
       offs.forEach((off) => off())
       audio.stopAll()
+      if (!props.audioEngine) audioEngine.dispose()
     }
-  }, [signals, acceptSnapshot, now, audio])
+  }, [signals, acceptSnapshot, now, audio, audioEngine, props.audioEngine])
 
   return (
     <div

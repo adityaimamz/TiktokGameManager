@@ -22,10 +22,11 @@ export {
   SIGNAL_TOPICS,
   SNAPSHOT_PERSIST_DEBOUNCE_MS,
   SNAPSHOT_TOPIC,
+  SOUND_TOPIC,
   float32Codec,
   signalCodecs,
 } from './game-signals.js'
-export type { GameSignalsOptions } from './game-signals.js'
+export type { GameSignalsOptions, SoundCuePayload } from './game-signals.js'
 export {
   ALERT_GIFT_COINS_RANGE,
   ALERT_KINDS,

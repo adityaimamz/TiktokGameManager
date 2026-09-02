@@ -64,4 +64,28 @@ describe('rantai efek → bunyi', () => {
 
     expect(played).toEqual(['hit'])
   })
+
+  it('menerbitkan cue suara ke sinyal saat bunyi dimainkan', () => {
+    const clock = createManualClock()
+    const published: { cue: string; volume: number }[] = []
+    const sounds = new SoundQueue({
+      clock,
+      play: (id, volume) => {
+        published.push({ cue: id, volume })
+      },
+    })
+    const config = defaultConfig()
+    config.sound.join.volume = 0.6
+
+    const pool = new EffectPool(clock, 4, (effect) => {
+      if (effect.soundCue === null) return
+      const setting = config.sound[effect.soundCue as keyof typeof config.sound]
+      if (setting === undefined || !setting.enabled) return
+      sounds.request(effect.soundCue, setting.volume, 100)
+    })
+
+    spawnGameEffect(pool, config, { type: 'join', x: 0, y: 0 })
+
+    expect(published).toEqual([{ cue: 'join', volume: 0.6 }])
+  })
 })

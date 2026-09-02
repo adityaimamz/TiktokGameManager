@@ -358,8 +358,19 @@ Baris kedua normal kalau belum memakai database.
 
 ### 3a. Quick tunnel — untuk mencoba, 30 detik
 
-Terminal **kedua**, biarkan yang pertama jalan:
+**Cara Cepat (All-in-one dengan Auto-Build):**
+```bash
+npm run tunnel
+```
+> Perintah ini secara otomatis menjalankan `npm run build` terlebih dahulu, lalu menjalankan server produksi (`PORT=3001` dengan membaca `.env`) dan `cloudflared tunnel` sekaligus.
 
+**Atau Jalankan Manual (Dua Terminal):**
+Terminal 1:
+```bash
+npm run build
+npm start
+```
+Terminal 2:
 ```bash
 cloudflared tunnel --url http://localhost:3001
 ```
@@ -378,7 +389,7 @@ cloudflared tunnel create lga
 cloudflared tunnel route dns lga lga.domainmu.com
 ```
 
-`create` mencetak **Tunnel ID** — catat. Buat `~/.cloudflared/config.yml` (Windows: `%USERPROFILE%\.cloudflared\config.yml`):
+`create` mencetak **Tunnel ID** — catat. Buat `~/.cloudflared/config.yml` (Windows: `%USERPROFILE%\.cloudflared\config.yml` — template tersedia di `cloudflared.config.yml.example`):
 
 ```yaml
 tunnel: <TUNNEL-ID>
@@ -390,6 +401,11 @@ ingress:
   - service: http_status:404
 ```
 
+Jalankan dengan auto-build otomatis:
+```bash
+npm run tunnel:named
+```
+Atau manual:
 ```bash
 cloudflared tunnel run lga
 ```

@@ -53,17 +53,17 @@ interface Recipe {
 
 /** Delapan SoundEvent Battle Arena kebetulan memakai nama yang sama; tabel ini tetap generik. */
 const RECIPES: Record<string, Recipe> = {
-  attack: { wave: 'square', from: 320, to: 180, ms: 70, gain: 0.22 },
-  hit: { wave: 'triangle', from: 900, to: 220, ms: 90, gain: 0.3 },
-  heal: { wave: 'sine', from: 420, to: 880, ms: 260, gain: 0.26 },
-  death: { wave: 'sawtooth', from: 260, to: 60, ms: 320, gain: 0.3 },
-  join: { wave: 'sine', from: 520, to: 780, ms: 160, gain: 0.24 },
-  countdown: { wave: 'square', from: 660, to: 660, ms: 120, gain: 0.26 },
-  roundWin: { wave: 'triangle', from: 520, to: 1040, ms: 500, gain: 0.34 },
-  matchWin: { wave: 'sine', from: 440, to: 1320, ms: 900, gain: 0.38 },
+  attack: { wave: 'square', from: 320, to: 180, ms: 80, gain: 0.55 },
+  hit: { wave: 'triangle', from: 900, to: 220, ms: 90, gain: 0.65 },
+  heal: { wave: 'sine', from: 420, to: 880, ms: 260, gain: 0.55 },
+  death: { wave: 'sawtooth', from: 260, to: 60, ms: 320, gain: 0.65 },
+  join: { wave: 'sine', from: 520, to: 780, ms: 160, gain: 0.55 },
+  countdown: { wave: 'square', from: 660, to: 660, ms: 120, gain: 0.55 },
+  roundWin: { wave: 'triangle', from: 520, to: 1040, ms: 500, gain: 0.7 },
+  matchWin: { wave: 'sine', from: 440, to: 1320, ms: 900, gain: 0.75 },
 }
 
-const FALLBACK: Recipe = { wave: 'sine', from: 440, to: 440, ms: 120, gain: 0.22 }
+const FALLBACK: Recipe = { wave: 'sine', from: 440, to: 440, ms: 120, gain: 0.55 }
 
 function defaultContext(): AudioContextLike | null {
   const Ctor = (globalThis as { AudioContext?: new () => AudioContextLike }).AudioContext
@@ -100,9 +100,12 @@ export class AudioEngine {
     const ctx = this.ctx
     const master = this.master
     if (ctx === null || master === null) return
+    if (ctx.state === 'suspended') {
+      void ctx.resume().catch(() => {})
+    }
 
     const recipe = RECIPES[id] ?? FALLBACK
-    const now = ctx.currentTime
+    const now = Math.max(ctx.currentTime, 0.001)
     const end = now + recipe.ms / 1000
 
     const oscillator = ctx.createOscillator()

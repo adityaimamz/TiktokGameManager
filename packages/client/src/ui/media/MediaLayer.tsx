@@ -38,6 +38,7 @@ function BannerCard({ banner, layout }: { banner: BannerItem; layout: StageLayou
         display: 'flex',
         justifyContent: 'center',
         pointerEvents: 'none',
+        zIndex: 50,
       }}
     >
       <div
@@ -46,7 +47,7 @@ function BannerCard({ banner, layout }: { banner: BannerItem; layout: StageLayou
           flexDirection: 'column',
           alignItems: 'center',
           gap: scaled(layout, 8),
-          maxWidth: arena.width * 0.7,
+          maxWidth: arena.width * 0.75,
         }}
       >
         {banner.imageUrl === null || broken ? null : (
@@ -55,7 +56,12 @@ function BannerCard({ banner, layout }: { banner: BannerItem; layout: StageLayou
             data-testid="media-banner-image"
             onError={() => setBroken(true)}
             src={banner.imageUrl}
-            style={{ maxWidth: '100%', maxHeight: arena.height * 0.34, objectFit: 'contain' }}
+            style={{
+              maxWidth: '100%',
+              maxHeight: arena.height * 0.38,
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 6px 16px rgba(0,0,0,0.65))',
+            }}
           />
         )}
         {banner.text === '' ? null : (
@@ -64,16 +70,19 @@ function BannerCard({ banner, layout }: { banner: BannerItem; layout: StageLayou
               display: 'flex',
               alignItems: 'center',
               gap: scaled(layout, 8),
-              padding: `${scaled(layout, 6)}px ${scaled(layout, 14)}px`,
+              padding: `${scaled(layout, 7)}px ${scaled(layout, 16)}px`,
               borderRadius: scaled(layout, 999),
-              background: 'rgba(0,0,0,0.55)',
+              background: 'rgba(6, 8, 20, 0.82)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(8px)',
               color: '#fff',
               fontWeight: 800,
               fontSize: scaled(layout, 20),
               textAlign: 'center',
               // Banner berdiri di atas arena yang warnanya bisa apa saja; bayangan inilah
               // yang menjaganya terbaca di latar terang.
-              textShadow: '0 2px 6px rgba(0,0,0,0.75)',
+              textShadow: '0 2px 6px rgba(0,0,0,0.85)',
             }}
           >
             {banner.avatarUrl === null ? null : (
@@ -82,10 +91,11 @@ function BannerCard({ banner, layout }: { banner: BannerItem; layout: StageLayou
                 data-testid="media-banner-avatar"
                 src={banner.avatarUrl}
                 style={{
-                  width: scaled(layout, 26),
-                  height: scaled(layout, 26),
+                  width: scaled(layout, 28),
+                  height: scaled(layout, 28),
                   borderRadius: '50%',
                   objectFit: 'cover',
+                  border: '1.5px solid rgba(255, 255, 255, 0.6)',
                 }}
               />
             )}

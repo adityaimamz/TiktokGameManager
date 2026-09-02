@@ -54,4 +54,16 @@ describe('MediaLayer', () => {
     expect(Number.parseFloat(banner.style.top)).toBeGreaterThan(layout.arena.y)
     expect(Number.parseFloat(banner.style.left)).toBe(layout.arena.x)
   })
+
+  it('memiliki zIndex 50 agar selalu tampil di depan HUD dan Top Fighters/Gifters', () => {
+    render(
+      <MediaLayer
+        banner={{ id: 'a', text: 'Alert Depan', imageUrl: '/a.gif', avatarUrl: null }}
+        layout={layout}
+      />,
+    )
+
+    const banner = screen.getByTestId('media-banner')
+    expect(banner.style.zIndex).toBe('50')
+  })
 })

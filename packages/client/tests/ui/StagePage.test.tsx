@@ -2,10 +2,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { SIDE_A, SNAPSHOT_HEADER_LENGTH, snapshotLength } from '@lga/shared'
-import { GameSignals, MEDIA_TOPIC, SNAPSHOT_TOPIC } from '../../src/platform/signals/index.js'
+import { GameSignals, MEDIA_TOPIC, SNAPSHOT_TOPIC, SOUND_TOPIC } from '../../src/platform/signals/index.js'
 import { ALERT_DISPLAY_MS } from '../../src/ui/media/cue-queue.js'
 import type { AudioLike } from '../../src/ui/media/audio-channels.js'
 import type { SignalChannel } from '../../src/platform/signals/index.js'
+import { AudioEngine } from '../../src/platform/audio/audio.js'
 import { defaultConfig } from '../../src/games/battle-arena/config/index.js'
 import { UltimateFxPost } from '../../src/games/battle-arena/renderer/fx/index.js'
 import { StagePage } from '../../src/ui/StagePage.js'
@@ -269,5 +270,36 @@ describe('StagePage', () => {
     view.unmount()
 
     expect(audio.of('/api/uploads/lagu.mp3')?.paused).toBe(1)
+  })
+
+  it('memutar cue suara game yang diterima lewat sinyal', () => {
+    const bus = controllable()
+    const played: { id: string; volume: number }[] = []
+    const fakeAudioEngine = {
+      play: (id: string, volume: number) => {
+        played.push({ id, volume })
+      },
+      resume: () => Promise.resolve(),
+      dispose: () => {},
+    } as unknown as AudioEngine
+
+    render(
+      <StagePage
+        signals={new GameSignals({ channel: bus.channel, now: () => 0 })}
+        size={{ width: 1600, height: 900 }}
+        audioEngine={fakeAudioEngine}
+        scheduleFrame={() => 1}
+        cancelFrame={() => {}}
+      />,
+    )
+
+    act(() =>
+      bus.deliver(SOUND_TOPIC, {
+        cue: 'attack',
+        volume: 0.7,
+      }),
+    )
+
+    expect(played).toEqual([{ id: 'attack', volume: 0.7 }])
   })
 })

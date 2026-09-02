@@ -246,21 +246,22 @@ describe('signalCodecs', () => {
     expect(received[0]?.url).toBe('/api/uploads/abc.mp3')
   })
 
-  it('tidak pernah mempersistensi cue media', () => {
+  it('mengantarkan cue suara ke subscriber-nya sendiri', () => {
+    const signals = new GameSignals({ channel: loopbackChannel(), now: () => 0 })
+    const received: { cue: string; volume: number }[] = []
+    signals.onSound((payload) => received.push(payload))
+
+    signals.publishSound({ cue: 'attack', volume: 0.5 })
+
+    expect(received).toEqual([{ cue: 'attack', volume: 0.5 }])
+  })
+
+  it('tidak pernah mempersistensi cue suara', () => {
     const storage = createStorage()
     const signals = new GameSignals({ channel: loopbackChannel(), storage, now: () => 0 })
 
-    signals.publishMedia({
-      id: 'cue-1',
-      kind: 'gif',
-      url: '/api/uploads/abc.gif',
-      volume: 1,
-      text: 'halo',
-      avatarUrl: null,
-    })
+    signals.publishSound({ cue: 'death', volume: 0.8 })
 
-    // Cue yang lewat lima menit lalu tidak layak dihidupkan lagi saat overlay di-reload —
-    // aturan yang sama dengan feed.
     expect(storage.map.size).toBe(0)
   })
 })

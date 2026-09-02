@@ -6,6 +6,7 @@ export const ROSTER_TOPIC = 'roster'
 export const CONFIG_TOPIC = 'config'
 export const FEED_TOPIC = 'feed'
 export const MEDIA_TOPIC = 'media'
+export const SOUND_TOPIC = 'sound'
 /**
  * Overlay yang baru hidup menyapa, dan pemilik engine menjawab dengan mengulang state.
  *
@@ -26,7 +27,13 @@ export const SIGNAL_TOPICS: readonly string[] = [
   FEED_TOPIC,
   MEDIA_TOPIC,
   REQUEST_STATE_TOPIC,
+  SOUND_TOPIC,
 ]
+
+export interface SoundCuePayload {
+  cue: string
+  volume: number
+}
 
 /** Menulis 20 snapshot per detik ke localStorage akan membekukan tab. */
 export const SNAPSHOT_PERSIST_DEBOUNCE_MS = 500
@@ -140,6 +147,13 @@ export class GameSignals<TRoster = unknown, TConfig = unknown, TFeed = unknown> 
     this.channel.post(MEDIA_TOPIC, cue)
   }
 
+  /**
+   * Cue suara sintesis Web Audio (tembakan, hit, kematian, dll.). Tidak dipersistensi.
+   */
+  publishSound(payload: SoundCuePayload): void {
+    this.channel.post(SOUND_TOPIC, payload)
+  }
+
   onSnapshot(handler: (buffer: Float32Array) => void): () => void {
     return this.on(SNAPSHOT_TOPIC, (payload) => handler(payload as Float32Array))
   }
@@ -158,6 +172,10 @@ export class GameSignals<TRoster = unknown, TConfig = unknown, TFeed = unknown> 
 
   onMedia(handler: (cue: MediaCue) => void): () => void {
     return this.on(MEDIA_TOPIC, (payload) => handler(payload as MediaCue))
+  }
+
+  onSound(handler: (payload: SoundCuePayload) => void): () => void {
+    return this.on(SOUND_TOPIC, (payload) => handler(payload as SoundCuePayload))
   }
 
   /** Req 19 AC4: yang ditampilkan overlay sebelum pesan live pertama tiba. */

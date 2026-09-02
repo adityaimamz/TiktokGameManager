@@ -1,0 +1,18 @@
+# Contoh konfigurasi Cloudflare Named Tunnel
+# Salin dan sesuaikan file ini ke:
+# - Windows: %USERPROFILE%\.cloudflared\config.yml
+# - Linux/macOS: ~/.cloudflared/config.yml
+#
+# Langkah setup named tunnel:
+# 1. cloudflared tunnel login
+# 2. cloudflared tunnel create lga
+# 3. cloudflared tunnel route dns lga lga.domainanda.com
+# 4. Sesuaikan konfigurasi di bawah ini:
+
+tunnel: <TUNNEL-ID>
+credentials-file: C:\Users\<Username>\.cloudflared\<TUNNEL-ID>.json
+
+ingress:
+  - hostname: lga.domainanda.com
+    service: http://localhost:3001
+  - service: http_status:404
